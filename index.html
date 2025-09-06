@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>VoiceBot Flow Editor</title>
+  <link rel="preconnect" href="https://esm.sh" />
+  <link rel="stylesheet" href="https://esm.sh/reactflow@11/dist/style.css" />
+  <style>
+    :root{
+      --bg:#0b1220; --panel:#0f172a; --muted:#94a3b8; --text:#e2e8f0; --accent:#22d3ee; --danger:#ef4444; --ok:#10b981;
+      --card:#111827; --border:#1f2937; --shadow:0 6px 30px rgba(0,0,0,.25)
+    }
+    html,body{height:100%;margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+    .app{display:grid;grid-template-columns:280px 1fr;grid-template-rows:auto 1fr;gap:0;height:100%;}
+    header{grid-column:1/3;display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:linear-gradient(90deg,#0b1220,#0f172a)}
+    header .title{display:flex;align-items:center;gap:10px;font-weight:700}
+    header .title input{background:transparent;border:1px solid var(--border);padding:6px 10px;border-radius:10px;color:var(--text)}
+    .sidebar{background:var(--panel);border-right:1px solid var(--border);display:flex;flex-direction:column;min-width:240px}
+    .sidebar h3{margin:16px 16px 8px;font-size:14px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+    .group{padding:0 12px 16px}
+    .btn{background:#1e293b;border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:12px;cursor:pointer;transition:.2s;box-shadow:var(--shadow)}
+    .btn:hover{filter:brightness(1.15)}
+    .btn-row{display:flex;flex-wrap:wrap;gap:8px}
+    .node-btn{display:flex;align-items:center;gap:6px}
+    .badge{width:10px;height:10px;border-radius:50%}
+    .green{background:#16a34a}.blue{background:#3b82f6}.amber{background:#f59e0b}.rose{background:#f43f5e}.teal{background:#14b8a6}.violet{background:#8b5cf6}.slate{background:#64748b}
+    .toolbar{display:flex;flex-wrap:wrap;gap:8px;padding:10px;background:#0e1526;border-top:1px solid var(--border)}
+    main{position:relative; min-height:0;} /* חשוב ל-ReactFlow */
+    #rf{width:100%;height:100%}
+    .note{color:var(--muted);font-size:12px;margin:8px 16px}
+    .switch{display:inline-flex;align-items:center;gap:8px}
+    .hidden{display:none}
+    .pill{border:1px solid var(--border);padding:4px 8px;border-radius:999px;color:var(--muted);font-size:12px}
+    .file{display:none}
+    .toast{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);background:#111827;border:1px solid var(--border);padding:10px 14px;border-radius:12px;box-shadow:var(--shadow);display:none}
+    .rtl{direction:rtl}
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <div class="toast" id="toast">Saved</div>
+
+  <script type="module">
+    import React, {useCallback, useMemo, useState, useEffect} from 'https://esm.sh/react@18.3.1'
+    import { createRoot } from 'https://esm.sh/react-dom@18.3.1/client'
+    import ReactFlow, {
+      ReactFlowProvider, MiniMap, Controls, Background,
+      addEdge, useEdgesState, useNodesState, useReactFlow, MarkerType
+    } from 'https://esm.sh/reactflow@11'
+    import * as htmlToImage from 'https://esm.sh/html-to-image@1.11.11'
+
+    const DEFAULT_EMAILS = ["support@example.com", "ops@example.com"];
+
+    const NODE_TYPES = [
+      {type:'Trigger/Start', color:'green'},
+      {type:'Speak/Play', color:'blue'},
+      {type:'Collect Input', color:'teal'},
+      {type:'Menu/Classification', color:'violet'},
+      {type:'Decision/If', color:'amber'},
+      {type:'Switch/Router', color:'slate'},
+      {type:'HTTP/Webhook', color:'rose'},
+      {type:'Set Variables', color:'teal'},
+      {type:'Delay/Wait', color:'slate'},
+      {type:'Transfer/Call Control', color:'blue'},
+      {type:'End/Hangup', color:'rose'}
+    ]
+
+    const STORAGE_KEY = 'vbfe_state_v1';
+
+    function toast(msg){
+      const el = document.getElementById('toast');
+      el.textContent = msg; el.style.display='block';
+      clearTimeout(window.__t); window.__t=setTimeout(()=>el.style.display='none', 1400);
+    }
+
+    function Sidebar({addNode, save, load, exportJson, importJson, exportPng, sendWhatsApp, sendEmail, rtl, setRtl}){
+      return (
+        <aside className={'sidebar '+(rtl?'rtl':'') }>
+          <h3>Nodes</h3>
+          <div className="group btn-row">
+            {NODE_TYPES.map(n=> (
+              <button className="btn node-btn" title={n.type} onClick={()=>addNode(n.type)} key={n.type}>
+                <span className={'badge '+n.color}></span>
+                <span>{n.type}</span>
+              </button>
+            ))}
+          </div>
+          <h3>Layout</h3>
+          <div className="group btn-row">
+            <button className="btn" onClick={()=>setRtl(v=>!v)}>{rtl?'Switch to LTR':'Switch to RTL (Hebrew)'}</button>
+            <span className="pill">Zoom/Pan with mouse · Connect by dragging handles</span>
+          </div>
+          <h3>Persistence & Sharing</h3>
+          <div className="group btn-row">
+            <button className="btn" onClick={save}>Save</button>
+            <button className="btn" onClick={load}>Load</button>
+            <button className="btn" onClick={exportJson}>Export JSON</button>
+            <label className="btn" htmlFor="file">Import JSON<input id="file" className="file" type="file" accept="application/json" onChange={importJson}/></label>
+            <button className="btn" onClick={exportPng}>Export PNG</button>
+          </div>
+          <div className="group btn-row">
+            <button className="btn" onClick={sendWhatsApp}>Share via WhatsApp</button>
+            <button className="btn" onClick={sendEmail}>Share via Email</button>
+          </div>
+          <p className="note">Hotkeys: <b>Double-click</b> to rename · <b>Del</b> delete · <b>Ctrl/Cmd+Z</b> undo · <b>Ctrl/Cmd+Y</b> redo · <b>Shift+Drag</b> box select</p>
+        </aside>
+      )
+    }
+
+    function Header({flowName,setFlowName}){
+      return (
+        <header>
+          <div className="title">
+            <span>🗺️ VoiceBot Flow Editor</span>
+            <input value={flowName} onChange={e=>setFlowName(e.target.value)} placeholder="Flow name" />
+          </div>
+          <div className="pill">GitHub Pages-ready · Single file</div>
+        </header>
+      )
+    }
+
+    function Editor({rtl}){
+      const initialNodes = useMemo(()=>[
+        { id: 'n1', type:'input', position:{x:420,y:50}, data:{label:'Start Call'} , style:{background:'#064e3b',color:'#ecfdf5'}},
+      ],[])
+      const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes)
+      const [edges, setEdges, onEdgesChange] = useEdgesState([])
+      const rf = useReactFlow()
+
+      useEffect(()=>{
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({nodes,edges,flowName:window.__flowName||''}))
+      },[nodes,edges])
+
+      const onConnect = useCallback((params)=>
+        setEdges(eds=> addEdge({ ...params, animated:false, markerEnd:{type:MarkerType.ArrowClosed}}, eds))
+      ,[])
+
+      const addNode = useCallback((type)=>{
+        const id = 'n'+(Date.now()+Math.floor(Math.random()*999)).toString(36)
+        const position = rf.screenToFlowPosition({x: 500 + Math.random()*120, y: 150 + Math.random()*80})
+        const colorMap={
+          'Trigger/Start':'#16a34a','Speak/Play':'#2563eb','Collect Input':'#0d9488','Menu/Classification':'#7c3aed',
+          'Decision/If':'#d97706','Switch/Router':'#334155','HTTP/Webhook':'#e11d48','Set Variables':'#0d9488',
+          'Delay/Wait':'#334155','Transfer/Call Control':'#2563eb','End/Hangup':'#dc2626'}
+        const fg = ['#ecfeff','#e0f2fe','#ecfdf5','#eef2ff','#fffbeb','#e5e7eb','#fee2e2'][Math.floor(Math.random()*7)]
+        setNodes(nds=> nds.concat({
+          id, position,
+          type: (type==='Trigger/Start'?'input': type==='End/Hangup'?'output': 'default'),
+          data:{label:type},
+          style:{background:colorMap[type]||'#1f2937', color: fg, borderRadius:12, padding:8}
+        }))
+      },[rf,setNodes])
+
+      const onNodeDoubleClick = useCallback((_, node)=>{
+        const name = prompt('Rename node:', node.data.label)
+        if(name!==null){ setNodes(nds=> nds.map(n=> n.id===node.id? {...n, data:{...n.data, label:name}}:n)) }
+      },[setNodes])
+
+      useEffect(()=>{
+        const h = (e)=>{
+          if(e.key==='Delete' || e.key==='Backspace'){
+            const selNodes = rf.getNodes().filter(n=>n.selected)
+            const selEdges = rf.getEdges().filter(ed=>ed.selected)
+            if(selNodes.length || selEdges.length){
+              setNodes(nds=> nds.filter(n=> !n.selected))
+              setEdges(eds=> eds.filter(ed=> !ed.selected))
+            }
+          }
+        }
+        window.addEventListener('keydown',h); return ()=>window.removeEventListener('keydown',h)
+      },[rf,setNodes,setEdges])
+
+      window.__save = ()=>{ const state={nodes,edges,flowName:window.__flowName||'Untitled'}; localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); toast('Saved to browser') }
+      window.__load = ()=>{ const s=localStorage.getItem(STORAGE_KEY); if(!s){toast('Nothing to load'); return}
+        try{ const {nodes,edges,flowName}=JSON.parse(s); setNodes(nodes||[]); setEdges(edges||[]); if(flowName) window.__setFlowName(flowName); toast('Loaded') }catch{ toast('Bad data') } }
+      window.__exportJson = ()=>{ const blob=new Blob([JSON.stringify({name:window.__flowName||'Untitled',nodes,edges},null,2)],{type:'application/json'});
+        const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=(window.__flowName||'flow')+'.json'; a.click(); URL.revokeObjectURL(a.href) }
+      window.__importJson = (e)=>{ const f=e.target.files?.[0]; if(!f) return; const fr=new FileReader(); fr.onload=()=>{
+          try{ const obj=JSON.parse(fr.result); setNodes(obj.nodes||[]); setEdges(obj.edges||[]); if(obj.name) window.__setFlowName(obj.name); toast('Imported') }catch{ toast('Invalid JSON') }
+        }; fr.readAsText(f) }
+      window.__exportPng = async()=>{ const el=document.querySelector('#rf'); const dataUrl=await htmlToImage.toPng(el,{backgroundColor:'#0b1220'}); const a=document.createElement('a'); a.href=dataUrl; a.download=(window.__flowName||'flow')+'.png'; a.click() }
+      window.__sendWhatsApp = ()=>{ const payload=encodeURIComponent(JSON.stringify({name:window.__flowName||'Untitled',nodes,edges})); window.open(`https://wa.me/?text=${payload}`,'_blank') }
+      window.__sendEmail = ()=>{ const to=(window.__presetEmails||DEFAULT_EMAILS).join(','); const subj=encodeURIComponent(`[Flow] ${(window.__flowName||'Untitled')}`); const body=encodeURIComponent(JSON.stringify({name:window.__flowName||'Untitled',nodes,edges},null,2)); window.location.href=`mailto:${to}?subject=${subj}&body=${body}` }
+
+      return (
+        <div style={{height:'100%', position:'relative'}} className={rtl?'rtl':''}>
+          <ReactFlow id="rf"
+            nodes={nodes} edges={edges}
+            onNodesChange={onNodesChange} onEdgesChange={onEdgesChange}
+            onConnect={onConnect}
+            onNodeDoubleClick={onNodeDoubleClick}
+            fitView>
+            <MiniMap pannable zoomable/>
+            <Controls showInteractive={false}/>
+            <Background gap={18} size={1} color="#1f2937"/>
+          </ReactFlow>
+        </div>
+      )
+    }
+
+    function App(){
+      const [flowName, setFlowName] = useState('New Flow')
+      const [rtl, setRtl] = useState(false)
+      useEffect(()=>{ window.__flowName=flowName; window.__setFlowName=setFlowName },[flowName])
+
+      return (
+        <div className={'app '+(rtl?'rtl':'') }>
+          <Header flowName={flowName} setFlowName={setFlowName} />
+          <Sidebar
+            addNode={(t)=>window.__addNode?.(t)}
+            save={()=>window.__save()} load={()=>window.__load()}
+            exportJson={()=>window.__exportJson()} importJson={(e)=>window.__importJson(e)}
+            exportPng={()=>window.__exportPng()} sendWhatsApp={()=>window.__sendWhatsApp()} sendEmail={()=>window.__sendEmail()}
+            rtl={rtl} setRtl={setRtl}
+          />
+          <main>
+            <div className="toolbar">
+              <span className="pill">Flow: {flowName}</span>
+              <span className="pill">Nodes connect by dragging handles</span>
+            </div>
+            {/* Provider fixes useReactFlow crash */}
+            <ReactFlowProvider>
+              <Editor rtl={rtl}/>
+            </ReactFlowProvider>
+          </main>
+        </div>
+      )
+    }
+
+    // לחשוף addNode אחרי שה-Provider נטען
+    window.__addNode = ()=>{}; // placeholder עד שה-Editor יגדיר פנימי
+    createRoot(document.getElementById('root')).render(<App />)
+  </script>
+</body>
+</html>
