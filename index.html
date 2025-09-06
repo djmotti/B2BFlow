@@ -4,14 +4,16 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>VoiceBot Flow Editor</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reactflow@11.10.1/dist/style.css" />
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" />
+  <!-- React Flow core styles from jsDelivr -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reactflow@11.10.0/dist/style.css" />
   <style>
     :root{
       --bg:#0b1220; --panel:#0f172a; --muted:#94a3b8; --text:#e2e8f0; --accent:#22d3ee; --danger:#ef4444; --ok:#10b981;
       --card:#111827; --border:#1f2937; --shadow:0 6px 30px rgba(0,0,0,.25)
     }
     html,body{height:100%;margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
-    .app{display:grid;grid-template-columns:280px 1fr;grid-template-rows:auto 1fr;gap:0;height:100%}
+    .app{display:grid;grid-template-columns:280px 1fr;grid-template-rows:auto 1fr;gap:0;height:100%;}
     header{grid-column:1/3;display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:linear-gradient(90deg,#0b1220,#0f172a)}
     header .title{display:flex;align-items:center;gap:10px;font-weight:700}
     header .title input{background:transparent;border:1px solid var(--border);padding:6px 10px;border-radius:10px;color:var(--text)}
@@ -28,6 +30,8 @@
     main{position:relative; min-height:0;}
     #rf{width:100%;height:100%}
     .note{color:var(--muted);font-size:12px;margin:8px 16px}
+    .switch{display:inline-flex;align-items:center;gap:8px}
+    .hidden{display:none}
     .pill{border:1px solid var(--border);padding:4px 8px;border-radius:999px;color:var(--muted);font-size:12px}
     .file{display:none}
     .toast{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);background:#111827;border:1px solid var(--border);padding:10px 14px;border-radius:12px;box-shadow:var(--shadow);display:none}
@@ -39,16 +43,21 @@
   <div class="toast" id="toast">Saved</div>
 
   <script type="module">
-    // Robust ESM imports via jsDelivr +esm
-    import React, {useCallback, useMemo, useState, useEffect} from 'https://cdn.jsdelivr.net/npm/react@18.2.0/+esm'
-    import { createRoot } from 'https://cdn.jsdelivr.net/npm/react-dom@18.2.0/client/+esm'
-    import ReactFlow, {
-      ReactFlowProvider, MiniMap, Controls, Background,
-      addEdge, useEdgesState, useNodesState, useReactFlow, MarkerType
-    } from 'https://cdn.jsdelivr.net/npm/reactflow@11.10.1/+esm'
-    import * as htmlToImage from 'https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/+esm'
+    // Import core libraries from jsDelivr with ESM support.  Using jsDelivr avoids
+    // intermittent HTML responses that esm.sh sometimes serves when loaded over
+    // GitHub Pages, which previously resulted in "Unexpected token '<'" errors.
+    import React, {useCallback, useMemo, useState, useEffect} from 'https://cdn.jsdelivr.net/npm/react@18.3.1/+esm';
+    import { createRoot } from 'https://cdn.jsdelivr.net/npm/react-dom@18.3.1/+esm/client';
+    import ReactFlow, { MiniMap, Controls, Background, addEdge, useEdgesState, useNodesState, useReactFlow, MarkerType } from 'https://cdn.jsdelivr.net/npm/reactflow@11.10.0/+esm';
+    import * as htmlToImage from 'https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/+esm';
+    // jsPDF for PDF export
+    import { jsPDF } from 'https://cdn.jsdelivr.net/npm/jspdf@2.5.1/+esm';
 
-    const DEFAULT_EMAILS = ["support@example.com", "ops@example.com"];
+    // Default recipient list for email sharing.  The user can change this
+    // constant to any comma‑separated list of email addresses.  In this
+    // implementation we predefine the addresses requested by the user.
+    const DEFAULT_EMAILS = ["motik@consist.co.il", "omerrm@consist.co.il"];
+
     const NODE_TYPES = [
       {type:'Trigger/Start', color:'green'},
       {type:'Speak/Play', color:'blue'},
@@ -62,6 +71,7 @@
       {type:'Transfer/Call Control', color:'blue'},
       {type:'End/Hangup', color:'rose'}
     ]
+
     const STORAGE_KEY = 'vbfe_state_v1';
 
     function toast(msg){
@@ -70,7 +80,7 @@
       clearTimeout(window.__t); window.__t=setTimeout(()=>el.style.display='none', 1400);
     }
 
-    function Sidebar({addNode, save, load, exportJson, importJson, exportPng, sendWhatsApp, sendEmail, rtl, setRtl}){
+    function Sidebar({addNode, save, load, exportJson, importJson, exportPng, exportJpeg, exportPdf, sendWhatsApp, sendEmail, rtl, setRtl}){
       return (
         <aside className={'sidebar '+(rtl?'rtl':'') }>
           <h3>Nodes</h3>
@@ -94,6 +104,8 @@
             <button className="btn" onClick={exportJson}>Export JSON</button>
             <label className="btn" htmlFor="file">Import JSON<input id="file" className="file" type="file" accept="application/json" onChange={importJson}/></label>
             <button className="btn" onClick={exportPng}>Export PNG</button>
+            <button className="btn" onClick={exportJpeg}>Export JPEG</button>
+            <button className="btn" onClick={exportPdf}>Export PDF</button>
           </div>
           <div className="group btn-row">
             <button className="btn" onClick={sendWhatsApp}>Share via WhatsApp</button>
@@ -124,7 +136,11 @@
       const [edges, setEdges, onEdgesChange] = useEdgesState([])
       const rf = useReactFlow()
 
-      useEffect(()=>{ localStorage.setItem(STORAGE_KEY, JSON.stringify({nodes,edges,flowName:window.__flowName||''})) },[nodes,edges])
+      // autosave: persist the current nodes/edges and flow name to localStorage
+      useEffect(()=>{
+        const state = { nodes, edges, flowName: window.__flowName || 'Untitled' };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      }, [nodes, edges]);
 
       const onConnect = useCallback((params)=> setEdges(eds=> addEdge({ ...params, animated:false, markerEnd:{type:MarkerType.ArrowClosed}}, eds)),[])
 
@@ -135,13 +151,14 @@
           'Trigger/Start':'#16a34a','Speak/Play':'#2563eb','Collect Input':'#0d9488','Menu/Classification':'#7c3aed','Decision/If':'#d97706','Switch/Router':'#334155','HTTP/Webhook':'#e11d48','Set Variables':'#0d9488','Delay/Wait':'#334155','Transfer/Call Control':'#2563eb','End/Hangup':'#dc2626'}
         const fg = ['#ecfeff','#e0f2fe','#ecfdf5','#eef2ff','#fffbeb','#e5e7eb','#fee2e2'][Math.floor(Math.random()*7)]
         setNodes(nds=> nds.concat({ id, position, type: (type==='Trigger/Start'?'input': type==='End/Hangup'?'output': 'default'), data:{label:type}, style:{background:colorMap[type]||'#1f2937', color: fg, borderRadius:12, padding:8} }))
-      },[rf,setNodes])
+      },[])
 
       const onNodeDoubleClick = useCallback((_, node)=>{
         const name = prompt('Rename node:', node.data.label)
         if(name!==null){ setNodes(nds=> nds.map(n=> n.id===node.id? {...n, data:{...n.data, label:name}}:n)) }
-      },[setNodes])
+      },[])
 
+      // keyboard delete
       useEffect(()=>{
         const h = (e)=>{
           if(e.key==='Delete' || e.key==='Backspace'){
@@ -154,23 +171,88 @@
           }
         }
         window.addEventListener('keydown',h); return ()=>window.removeEventListener('keydown',h)
-      },[rf,setNodes,setEdges])
+      },[])
 
-      // expose for Sidebar
-      useEffect(()=>{ window.__addNode = addNode; }, [addNode])
+      // persistence helpers exposed via ref on window for Sidebar callbacks
+      const save = useCallback(()=>{
+        const state = {nodes, edges, flowName: window.__flowName||'Untitled'}
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); toast('Saved to browser')
+      },[nodes,edges])
+      const load = useCallback(()=>{
+        const s = localStorage.getItem(STORAGE_KEY); if(!s){toast('Nothing to load'); return}
+        try{ const {nodes,edges,flowName} = JSON.parse(s); setNodes(nodes||[]); setEdges(edges||[]); if(flowName) window.__setFlowName(flowName); toast('Loaded')}catch{toast('Bad data')}
+      },[])
+      const exportJson = useCallback(()=>{
+        const blob = new Blob([JSON.stringify({name:window.__flowName||'Untitled', nodes, edges}, null, 2)], {type:'application/json'})
+        const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=(window.__flowName||'flow')+'.json'; a.click(); URL.revokeObjectURL(a.href)
+      },[nodes,edges])
+      const importJson = useCallback((e)=>{
+        const f = e.target.files?.[0]; if(!f) return; const fr = new FileReader(); fr.onload=()=>{
+          try{ const obj = JSON.parse(fr.result); setNodes(obj.nodes||[]); setEdges(obj.edges||[]); if(obj.name) window.__setFlowName(obj.name); toast('Imported') }catch{ toast('Invalid JSON') }
+        }; fr.readAsText(f)
+      },[])
+      const exportPng = useCallback(async()=>{
+        const el = document.querySelector('#rf');
+        const dataUrl = await htmlToImage.toPng(el, {backgroundColor:'#0b1220'});
+        const a = document.createElement('a'); a.href=dataUrl; a.download=(window.__flowName||'flow')+'.png'; a.click();
+      },[])
 
-      // expose other helpers
-      window.__save = ()=>{ const state={nodes,edges,flowName:window.__flowName||'Untitled'}; localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); toast('Saved to browser') }
-      window.__load = ()=>{ const s=localStorage.getItem(STORAGE_KEY); if(!s){toast('Nothing to load'); return}
-        try{ const {nodes,edges,flowName}=JSON.parse(s); setNodes(nodes||[]); setEdges(edges||[]); if(flowName) window.__setFlowName(flowName); toast('Loaded') }catch{ toast('Bad data') } }
-      window.__exportJson = ()=>{ const blob=new Blob([JSON.stringify({name:window.__flowName||'Untitled',nodes,edges},null,2)],{type:'application/json'});
-        const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=(window.__flowName||'flow')+'.json'; a.click(); URL.revokeObjectURL(a.href) }
-      window.__importJson = (e)=>{ const f=e.target.files?.[0]; if(!f) return; const fr=new FileReader(); fr.onload=()=>{
-          try{ const obj=JSON.parse(fr.result); setNodes(obj.nodes||[]); setEdges(obj.edges||[]); if(obj.name) window.__setFlowName(obj.name); toast('Imported') }catch{ toast('Invalid JSON') }
-        }; fr.readAsText(f) }
-      window.__exportPng = async()=>{ const el=document.querySelector('#rf'); const dataUrl=await htmlToImage.toPng(el,{backgroundColor:'#0b1220'}); const a=document.createElement('a'); a.href=dataUrl; a.download=(window.__flowName||'flow')+'.png'; a.click() }
-      window.__sendWhatsApp = ()=>{ const payload=encodeURIComponent(JSON.stringify({name:window.__flowName||'Untitled',nodes,edges})); window.open(`https://wa.me/?text=${payload}`,'_blank') }
-      window.__sendEmail = ()=>{ const to=(window.__presetEmails||DEFAULT_EMAILS).join(','); const subj=encodeURIComponent(`[Flow] ${(window.__flowName||'Untitled')}`); const body=encodeURIComponent(JSON.stringify({name:window.__flowName||'Untitled',nodes,edges},null,2)); window.location.href=`mailto:${to}?subject=${subj}&body=${body}` }
+      // Export the current canvas as a JPEG file.  Uses html-to-image to
+      // convert the rendered flow diagram into a JPEG data URL and then
+      // triggers a download.  JPEG is a more compact alternative to PNG.
+      const exportJpeg = useCallback(async()=>{
+        const el = document.querySelector('#rf');
+        const dataUrl = await htmlToImage.toJpeg(el, {backgroundColor:'#0b1220', quality:0.95});
+        const a = document.createElement('a'); a.href=dataUrl; a.download=(window.__flowName||'flow')+'.jpg'; a.click();
+      },[])
+
+      // Export the current canvas as a PDF.  First generates a PNG image from
+      // the canvas, then embeds it into a PDF using jsPDF.  The PDF will
+      // match the canvas dimensions (landscape) and include the flow diagram
+      // on a single page.  This allows customers to share a printable copy of
+      // their flow.
+      const exportPdf = useCallback(async()=>{
+        const el = document.querySelector('#rf');
+        const dataUrl = await htmlToImage.toPng(el, {backgroundColor:'#0b1220'});
+        // Determine canvas dimensions
+        const width = el.clientWidth;
+        const height = el.clientHeight;
+        const pdf = new jsPDF({orientation: width > height ? 'landscape' : 'portrait', unit:'px', format:[width, height]});
+        pdf.addImage(dataUrl, 'PNG', 0, 0, width, height);
+        pdf.save((window.__flowName||'flow')+'.pdf');
+      },[])
+      const sendWhatsApp = useCallback(()=>{
+        const payload = encodeURIComponent(JSON.stringify({name:window.__flowName||'Untitled', nodes, edges}))
+        const url = `https://wa.me/?text=${payload}`; window.open(url, '_blank')
+      },[nodes,edges])
+      const sendEmail = useCallback(()=>{
+        // Compose an email that includes an embedded PNG of the current flow.
+        // We capture the canvas as a PNG and embed the data URI in the mail body.
+        // Note: attachments cannot be added via mailto links, but including
+        // the image data URI allows recipients to view or download the image
+        // directly from the email body.
+        const send = async() => {
+          const el = document.querySelector('#rf');
+          const dataUrl = await htmlToImage.toPng(el, {backgroundColor:'#0b1220'});
+          const to = (window.__presetEmails||DEFAULT_EMAILS).join(',');
+          const subj = encodeURIComponent(`[Flow] ${(window.__flowName||'Untitled')}`);
+          const body = encodeURIComponent(`Flow diagram for "${window.__flowName||'Untitled'}"\n\nCopy and paste the following link into your browser to view the image:\n${dataUrl}`);
+          window.location.href = `mailto:${to}?subject=${subj}&body=${body}`;
+        };
+        send();
+      },[nodes,edges])
+
+      // expose for sidebar
+      window.__save = save;
+      window.__load = load;
+      window.__exportJson = exportJson;
+      window.__importJson = importJson;
+      window.__exportPng = exportPng;
+      window.__exportJpeg = exportJpeg;
+      window.__exportPdf = exportPdf;
+      window.__sendWhatsApp = sendWhatsApp;
+      window.__sendEmail = sendEmail;
+      window.__addNode = addNode;
 
       return (
         <div style={{height:'100%', position:'relative'}} className={rtl?'rtl':''}>
@@ -179,7 +261,8 @@
             onNodesChange={onNodesChange} onEdgesChange={onEdgesChange}
             onConnect={onConnect}
             onNodeDoubleClick={onNodeDoubleClick}
-            fitView>
+            fitView
+          >
             <MiniMap pannable zoomable/>
             <Controls showInteractive={false}/>
             <Background gap={18} size={1} color="#1f2937"/>
@@ -191,16 +274,21 @@
     function App(){
       const [flowName, setFlowName] = useState('New Flow')
       const [rtl, setRtl] = useState(false)
-      useEffect(()=>{ window.__flowName=flowName; window.__setFlowName=setFlowName },[flowName])
+      useEffect(()=>{ window.__flowName = flowName; window.__setFlowName=setFlowName },[flowName])
 
       return (
         <div className={'app '+(rtl?'rtl':'') }>
           <Header flowName={flowName} setFlowName={setFlowName} />
           <Sidebar
-            addNode={(t)=>window.__addNode?.(t)}
+            addNode={(t)=>window.__addNode(t)}
             save={()=>window.__save()} load={()=>window.__load()}
-            exportJson={()=>window.__exportJson()} importJson={(e)=>window.__importJson(e)}
-            exportPng={()=>window.__exportPng()} sendWhatsApp={()=>window.__sendWhatsApp()} sendEmail={()=>window.__sendEmail()}
+            exportJson={()=>window.__exportJson()}
+            importJson={(e)=>window.__importJson(e)}
+            exportPng={()=>window.__exportPng()}
+            exportJpeg={()=>window.__exportJpeg()}
+            exportPdf={()=>window.__exportPdf()}
+            sendWhatsApp={()=>window.__sendWhatsApp()}
+            sendEmail={()=>window.__sendEmail()}
             rtl={rtl} setRtl={setRtl}
           />
           <main>
@@ -208,10 +296,7 @@
               <span className="pill">Flow: {flowName}</span>
               <span className="pill">Nodes connect by dragging handles</span>
             </div>
-            {/* Provider fixes useReactFlow crash */}
-            <ReactFlowProvider>
-              <Editor rtl={rtl}/>
-            </ReactFlowProvider>
+            <Editor rtl={rtl}/>
           </main>
         </div>
       )
