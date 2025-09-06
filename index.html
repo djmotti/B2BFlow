@@ -3,306 +3,1271 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>VoiceBot Flow Editor</title>
+  <title>VoiceBot Flow Editor - Advanced</title>
   <link rel="preconnect" href="https://cdn.jsdelivr.net" />
-  <!-- React Flow core styles from jsDelivr -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reactflow@11.10.0/dist/style.css" />
   <style>
     :root{
-      --bg:#0b1220; --panel:#0f172a; --muted:#94a3b8; --text:#e2e8f0; --accent:#22d3ee; --danger:#ef4444; --ok:#10b981;
-      --card:#111827; --border:#1f2937; --shadow:0 6px 30px rgba(0,0,0,.25)
+      --bg: linear-gradient(135deg, #0b1220 0%, #1e293b 100%);
+      --panel: rgba(15, 23, 42, 0.95);
+      --muted: #94a3b8;
+      --text: #e2e8f0;
+      --accent: #22d3ee;
+      --danger: #ef4444;
+      --ok: #10b981;
+      --warning: #f59e0b;
+      --card: rgba(17, 24, 39, 0.8);
+      --border: #1f2937;
+      --shadow: 0 8px 32px rgba(0,0,0,.4);
+      --glow: 0 0 20px rgba(34, 211, 238, 0.3);
     }
-    html,body{height:100%;margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
-    .app{display:grid;grid-template-columns:280px 1fr;grid-template-rows:auto 1fr;gap:0;height:100%;}
-    header{grid-column:1/3;display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:linear-gradient(90deg,#0b1220,#0f172a)}
-    header .title{display:flex;align-items:center;gap:10px;font-weight:700}
-    header .title input{background:transparent;border:1px solid var(--border);padding:6px 10px;border-radius:10px;color:var(--text)}
-    .sidebar{background:var(--panel);border-right:1px solid var(--border);display:flex;flex-direction:column;min-width:240px}
-    .sidebar h3{margin:16px 16px 8px;font-size:14px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
-    .group{padding:0 12px 16px}
-    .btn{background:#1e293b;border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:12px;cursor:pointer;transition:.2s;box-shadow:var(--shadow)}
-    .btn:hover{filter:brightness(1.15)}
-    .btn-row{display:flex;flex-wrap:wrap;gap:8px}
-    .node-btn{display:flex;align-items:center;gap:6px}
-    .badge{width:10px;height:10px;border-radius:50%}
-    .green{background:#16a34a}.blue{background:#3b82f6}.amber{background:#f59e0b}.rose{background:#f43f5e}.teal{background:#14b8a6}.violet{background:#8b5cf6}.slate{background:#64748b}
-    .toolbar{display:flex;flex-wrap:wrap;gap:8px;padding:10px;background:#0e1526;border-top:1px solid var(--border)}
-    main{position:relative; min-height:0;}
-    #rf{width:100%;height:100%}
-    .note{color:var(--muted);font-size:12px;margin:8px 16px}
-    .switch{display:inline-flex;align-items:center;gap:8px}
-    .hidden{display:none}
-    .pill{border:1px solid var(--border);padding:4px 8px;border-radius:999px;color:var(--muted);font-size:12px}
-    .file{display:none}
-    .toast{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);background:#111827;border:1px solid var(--border);padding:10px 14px;border-radius:12px;box-shadow:var(--shadow);display:none}
-    .rtl{direction:rtl}
+
+    * { box-sizing: border-box; }
+    
+    html, body {
+      height: 100%;
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      overflow: hidden;
+    }
+
+    .app {
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      grid-template-rows: auto 1fr auto;
+      height: 100vh;
+      position: relative;
+    }
+
+    header {
+      grid-column: 1/3;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 20px;
+      background: linear-gradient(90deg, rgba(11, 18, 32, 0.95), rgba(15, 23, 42, 0.95));
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--border);
+      box-shadow: var(--shadow);
+    }
+
+    header .title {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 700;
+      font-size: 18px;
+    }
+
+    header .title input {
+      background: rgba(30, 41, 59, 0.5);
+      border: 1px solid var(--border);
+      padding: 8px 14px;
+      border-radius: 12px;
+      color: var(--text);
+      font-size: 14px;
+      transition: all 0.2s ease;
+      backdrop-filter: blur(5px);
+    }
+
+    header .title input:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: var(--glow);
+    }
+
+    .sidebar {
+      background: var(--panel);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      backdrop-filter: blur(15px);
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: var(--accent) transparent;
+    }
+
+    .sidebar::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .sidebar::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .sidebar::-webkit-scrollbar-thumb {
+      background: var(--accent);
+      border-radius: 3px;
+    }
+
+    .sidebar h3 {
+      margin: 20px 16px 12px;
+      font-size: 13px;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .group {
+      padding: 0 12px 20px;
+    }
+
+    .btn {
+      background: linear-gradient(135deg, rgba(30, 41, 59, 0.8), rgba(51, 65, 85, 0.6));
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 10px 14px;
+      border-radius: 14px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+      font-size: 13px;
+      font-weight: 500;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+      transition: left 0.5s;
+    }
+
+    .btn:hover::before {
+      left: 100%;
+    }
+
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 40px rgba(0,0,0,.5);
+      border-color: var(--accent);
+    }
+
+    .btn:active {
+      transform: translateY(0);
+    }
+
+    .btn-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .node-btn {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 140px;
+      justify-content: flex-start;
+    }
+
+    .badge {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      box-shadow: 0 0 8px currentColor;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.7; }
+    }
+
+    .green { background: #16a34a; }
+    .blue { background: #3b82f6; }
+    .amber { background: #f59e0b; }
+    .rose { background: #f43f5e; }
+    .teal { background: #14b8a6; }
+    .violet { background: #8b5cf6; }
+    .slate { background: #64748b; }
+
+    .toolbar {
+      grid-column: 1/3;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      padding: 12px 20px;
+      background: rgba(14, 21, 38, 0.9);
+      border-top: 1px solid var(--border);
+      backdrop-filter: blur(10px);
+      align-items: center;
+    }
+
+    main {
+      position: relative;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    #rf {
+      width: 100%;
+      height: 100%;
+    }
+
+    .note {
+      color: var(--muted);
+      font-size: 11px;
+      margin: 12px 16px;
+      line-height: 1.4;
+      background: rgba(30, 41, 59, 0.3);
+      padding: 10px;
+      border-radius: 8px;
+      border-left: 3px solid var(--accent);
+    }
+
+    .pill {
+      border: 1px solid var(--border);
+      padding: 6px 12px;
+      border-radius: 999px;
+      color: var(--muted);
+      font-size: 11px;
+      background: rgba(30, 41, 59, 0.5);
+      backdrop-filter: blur(5px);
+    }
+
+    .file {
+      display: none;
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: linear-gradient(135deg, #111827, #1f2937);
+      border: 1px solid var(--border);
+      padding: 12px 18px;
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+      display: none;
+      font-size: 14px;
+      z-index: 1000;
+      animation: slideIn 0.3s ease;
+    }
+
+    @keyframes slideIn {
+      from {
+        transform: translateX(100%);
+        opacity: 0;
+      }
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+
+    .rtl {
+      direction: rtl;
+    }
+
+    .stats-panel {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .stat-card {
+      background: var(--card);
+      padding: 12px 8px;
+      border-radius: 10px;
+      text-align: center;
+      border: 1px solid var(--border);
+    }
+
+    .stat-value {
+      font-size: 20px;
+      font-weight: bold;
+      color: var(--accent);
+    }
+
+    .stat-label {
+      font-size: 10px;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-top: 4px;
+    }
+
+    .search-box {
+      width: 100%;
+      background: rgba(30, 41, 59, 0.5);
+      border: 1px solid var(--border);
+      padding: 10px 14px;
+      border-radius: 12px;
+      color: var(--text);
+      font-size: 13px;
+      margin-bottom: 16px;
+    }
+
+    .search-box:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: var(--glow);
+    }
+
+    .validation-panel {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 16px;
+    }
+
+    .validation-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 0;
+      font-size: 12px;
+    }
+
+    .validation-icon {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 10px;
+      font-weight: bold;
+    }
+
+    .validation-error { background: var(--danger); }
+    .validation-warning { background: var(--warning); }
+    .validation-success { background: var(--ok); }
+
+    .react-flow__node {
+      box-shadow: var(--shadow);
+      border-radius: 12px !important;
+      backdrop-filter: blur(5px);
+    }
+
+    .react-flow__edge {
+      stroke: var(--accent);
+      stroke-width: 2;
+    }
+
+    .react-flow__edge.animated {
+      stroke-dasharray: 5;
+      animation: dashdraw 0.5s linear infinite;
+    }
+
+    @keyframes dashdraw {
+      to {
+        stroke-dashoffset: -10;
+      }
+    }
+
+    .context-menu {
+      position: fixed;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 0;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(15px);
+      z-index: 1000;
+      min-width: 150px;
+    }
+
+    .context-menu-item {
+      padding: 10px 16px;
+      cursor: pointer;
+      font-size: 13px;
+      color: var(--text);
+      transition: background 0.2s;
+    }
+
+    .context-menu-item:hover {
+      background: rgba(34, 211, 238, 0.1);
+    }
+
+    .floating-toolbar {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 8px;
+      backdrop-filter: blur(15px);
+      display: flex;
+      gap: 8px;
+    }
+
+    .toolbar-btn {
+      padding: 8px 12px;
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--text);
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 12px;
+      transition: all 0.2s;
+    }
+
+    .toolbar-btn:hover {
+      background: rgba(34, 211, 238, 0.1);
+      border-color: var(--accent);
+    }
+
+    .mode-toggle {
+      display: flex;
+      background: var(--card);
+      border-radius: 8px;
+      padding: 2px;
+      gap: 2px;
+    }
+
+    .mode-btn {
+      padding: 6px 12px;
+      background: transparent;
+      border: none;
+      color: var(--muted);
+      font-size: 11px;
+      cursor: pointer;
+      border-radius: 6px;
+      transition: all 0.2s;
+    }
+
+    .mode-btn.active {
+      background: var(--accent);
+      color: white;
+    }
+
+    @media (max-width: 768px) {
+      .app {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto auto 1fr auto;
+      }
+      
+      .sidebar {
+        max-height: 200px;
+        overflow-y: auto;
+      }
+    }
   </style>
 </head>
 <body>
   <div id="root"></div>
-  <div class="toast" id="toast">Saved</div>
+  <div class="toast" id="toast">Action completed</div>
 
   <script type="module">
-    // Import core libraries from jsDelivr with ESM support.  Using jsDelivr avoids
-    // intermittent HTML responses that esm.sh sometimes serves when loaded over
-    // GitHub Pages, which previously resulted in "Unexpected token '<'" errors.
-    import React, {useCallback, useMemo, useState, useEffect} from 'https://cdn.jsdelivr.net/npm/react@18.3.1/+esm';
+    import React, {useCallback, useMemo, useState, useEffect, useRef} from 'https://cdn.jsdelivr.net/npm/react@18.3.1/+esm';
     import { createRoot } from 'https://cdn.jsdelivr.net/npm/react-dom@18.3.1/+esm/client';
-    import ReactFlow, { MiniMap, Controls, Background, addEdge, useEdgesState, useNodesState, useReactFlow, MarkerType } from 'https://cdn.jsdelivr.net/npm/reactflow@11.10.0/+esm';
+    import ReactFlow, { MiniMap, Controls, Background, addEdge, useEdgesState, useNodesState, useReactFlow, MarkerType, Panel } from 'https://cdn.jsdelivr.net/npm/reactflow@11.10.0/+esm';
     import * as htmlToImage from 'https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/+esm';
-    // jsPDF for PDF export
     import { jsPDF } from 'https://cdn.jsdelivr.net/npm/jspdf@2.5.1/+esm';
 
-    // Default recipient list for email sharing.  The user can change this
-    // constant to any comma‑separated list of email addresses.  In this
-    // implementation we predefine the addresses requested by the user.
     const DEFAULT_EMAILS = ["motik@consist.co.il", "omerrm@consist.co.il"];
 
     const NODE_TYPES = [
-      {type:'Trigger/Start', color:'green'},
-      {type:'Speak/Play', color:'blue'},
-      {type:'Collect Input', color:'teal'},
-      {type:'Menu/Classification', color:'violet'},
-      {type:'Decision/If', color:'amber'},
-      {type:'Switch/Router', color:'slate'},
-      {type:'HTTP/Webhook', color:'rose'},
-      {type:'Set Variables', color:'teal'},
-      {type:'Delay/Wait', color:'slate'},
-      {type:'Transfer/Call Control', color:'blue'},
-      {type:'End/Hangup', color:'rose'}
-    ]
+      {type:'🚀 Trigger/Start', color:'green'},
+      {type:'🗣️ Speak/Play', color:'blue'},
+      {type:'📝 Collect Input', color:'teal'},
+      {type:'📋 Menu/Classification', color:'violet'},
+      {type:'🤔 Decision/If', color:'amber'},
+      {type:'🔄 Switch/Router', color:'slate'},
+      {type:'🌐 HTTP/Webhook', color:'rose'},
+      {type:'📊 Set Variables', color:'teal'},
+      {type:'⏰ Delay/Wait', color:'slate'},
+      {type:'📞 Transfer/Call Control', color:'blue'},
+      {type:'❌ End/Hangup', color:'rose'}
+    ];
 
-    const STORAGE_KEY = 'vbfe_state_v1';
+    const STORAGE_KEY = 'vbfe_advanced_v2';
+    const AUTOSAVE_INTERVAL = 3000;
 
-    function toast(msg){
+    function toast(msg, type = 'info') {
       const el = document.getElementById('toast');
-      el.textContent = msg; el.style.display='block';
-      clearTimeout(window.__t); window.__t=setTimeout(()=>el.style.display='none', 1400);
+      el.textContent = msg;
+      el.className = `toast ${type}`;
+      el.style.display = 'block';
+      clearTimeout(window.__toastTimeout);
+      window.__toastTimeout = setTimeout(() => el.style.display = 'none', 3000);
     }
 
-    function Sidebar({addNode, save, load, exportJson, importJson, exportPng, exportJpeg, exportPdf, sendWhatsApp, sendEmail, rtl, setRtl}){
-      return (
-        <aside className={'sidebar '+(rtl?'rtl':'') }>
-          <h3>Nodes</h3>
-          <div className="group btn-row">
-            {NODE_TYPES.map(n=> (
-              <button className="btn node-btn" title={n.type} onClick={()=>addNode(n.type)} key={n.type}>
-                <span className={'badge '+n.color}></span>
-                <span>{n.type}</span>
-              </button>
-            ))}
-          </div>
-          <h3>Layout</h3>
-          <div className="group btn-row">
-            <button className="btn" onClick={()=>setRtl(v=>!v)}>{rtl?'Switch to LTR':'Switch to RTL (Hebrew)'}</button>
-            <span className="pill">Zoom/Pan with mouse · Connect by dragging handles</span>
-          </div>
-          <h3>Persistence & Sharing</h3>
-          <div className="group btn-row">
-            <button className="btn" onClick={save}>Save</button>
-            <button className="btn" onClick={load}>Load</button>
-            <button className="btn" onClick={exportJson}>Export JSON</button>
-            <label className="btn" htmlFor="file">Import JSON<input id="file" className="file" type="file" accept="application/json" onChange={importJson}/></label>
-            <button className="btn" onClick={exportPng}>Export PNG</button>
-            <button className="btn" onClick={exportJpeg}>Export JPEG</button>
-            <button className="btn" onClick={exportPdf}>Export PDF</button>
-          </div>
-          <div className="group btn-row">
-            <button className="btn" onClick={sendWhatsApp}>Share via WhatsApp</button>
-            <button className="btn" onClick={sendEmail}>Share via Email</button>
-          </div>
-          <p className="note">Hotkeys: <b>Double‑click</b> to rename · <b>Del</b> delete · <b>Ctrl/Cmd+Z</b> undo · <b>Ctrl/Cmd+Y</b> redo · <b>Shift+Drag</b> box select</p>
-        </aside>
-      )
-    }
+    function FlowValidation({nodes, edges}) {
+      const [validationResults, setValidationResults] = useState([]);
 
-    function Header({flowName,setFlowName}){
-      return (
-        <header>
-          <div className="title">
-            <span>🗺️ VoiceBot Flow Editor</span>
-            <input value={flowName} onChange={e=>setFlowName(e.target.value)} placeholder="Flow name" />
-          </div>
-          <div className="pill">GitHub Pages‑ready · Single file</div>
-        </header>
-      )
-    }
+      useEffect(() => {
+        const results = [];
+        
+        const connectedNodeIds = new Set();
+        edges.forEach(edge => {
+          connectedNodeIds.add(edge.source);
+          connectedNodeIds.add(edge.target);
+        });
+        
+        const orphanedNodes = nodes.filter(node => 
+          !connectedNodeIds.has(node.id) && node.type !== 'input'
+        );
+        
+        if (orphanedNodes.length > 0) {
+          results.push({
+            type: 'warning',
+            message: `${orphanedNodes.length} orphaned node(s) detected`
+          });
+        }
 
-    function Editor({rtl}){
-      const initialNodes = useMemo(()=>[
-        { id: 'n1', type:'input', position:{x:420,y:50}, data:{label:'Start Call'} , style:{background:'#064e3b',color:'#ecfdf5'}},
-      ],[])
-      const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes)
-      const [edges, setEdges, onEdgesChange] = useEdgesState([])
-      const rf = useReactFlow()
+        const startNodes = nodes.filter(node => node.type === 'input');
+        if (startNodes.length === 0) {
+          results.push({
+            type: 'error',
+            message: 'No start node found'
+          });
+        } else if (startNodes.length > 1) {
+          results.push({
+            type: 'warning',
+            message: 'Multiple start nodes detected'
+          });
+        }
 
-      // autosave: persist the current nodes/edges and flow name to localStorage
-      useEffect(()=>{
-        const state = { nodes, edges, flowName: window.__flowName || 'Untitled' };
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        const endNodes = nodes.filter(node => node.type === 'output');
+        if (endNodes.length === 0) {
+          results.push({
+            type: 'warning',
+            message: 'No end node found'
+          });
+        }
+
+        if (results.length === 0) {
+          results.push({
+            type: 'success',
+            message: 'Flow validation passed'
+          });
+        }
+
+        setValidationResults(results);
       }, [nodes, edges]);
 
-      const onConnect = useCallback((params)=> setEdges(eds=> addEdge({ ...params, animated:false, markerEnd:{type:MarkerType.ArrowClosed}}, eds)),[])
+      return React.createElement('div', { className: "validation-panel" },
+        React.createElement('h4', { 
+          style: { margin: '0 0 8px 0', color: 'var(--accent)', fontSize: '12px' } 
+        }, '🔍 Flow Validation'),
+        validationResults.map((result, i) => 
+          React.createElement('div', { key: i, className: "validation-item" },
+            React.createElement('span', { 
+              className: `validation-icon validation-${result.type}` 
+            }, result.type === 'error' ? '!' : result.type === 'warning' ? '⚠' : '✓'),
+            React.createElement('span', null, result.message)
+          )
+        )
+      );
+    }
 
-      const addNode = useCallback((type)=>{
-        const id = 'n'+(Date.now()+Math.floor(Math.random()*999)).toString(36)
-        const position = rf.screenToFlowPosition({x: 500 + Math.random()*120, y: 150 + Math.random()*80})
-        const colorMap={
-          'Trigger/Start':'#16a34a','Speak/Play':'#2563eb','Collect Input':'#0d9488','Menu/Classification':'#7c3aed','Decision/If':'#d97706','Switch/Router':'#334155','HTTP/Webhook':'#e11d48','Set Variables':'#0d9488','Delay/Wait':'#334155','Transfer/Call Control':'#2563eb','End/Hangup':'#dc2626'}
-        const fg = ['#ecfeff','#e0f2fe','#ecfdf5','#eef2ff','#fffbeb','#e5e7eb','#fee2e2'][Math.floor(Math.random()*7)]
-        setNodes(nds=> nds.concat({ id, position, type: (type==='Trigger/Start'?'input': type==='End/Hangup'?'output': 'default'), data:{label:type}, style:{background:colorMap[type]||'#1f2937', color: fg, borderRadius:12, padding:8} }))
-      },[])
+    function FlowStats({nodes, edges}) {
+      const stats = useMemo(() => ({
+        nodes: nodes.length,
+        edges: edges.length,
+        startNodes: nodes.filter(n => n.type === 'input').length,
+        endNodes: nodes.filter(n => n.type === 'output').length
+      }), [nodes, edges]);
 
-      const onNodeDoubleClick = useCallback((_, node)=>{
-        const name = prompt('Rename node:', node.data.label)
-        if(name!==null){ setNodes(nds=> nds.map(n=> n.id===node.id? {...n, data:{...n.data, label:name}}:n)) }
-      },[])
+      return React.createElement('div', { className: "stats-panel" },
+        React.createElement('div', { className: "stat-card" },
+          React.createElement('div', { className: "stat-value" }, stats.nodes),
+          React.createElement('div', { className: "stat-label" }, 'Nodes')
+        ),
+        React.createElement('div', { className: "stat-card" },
+          React.createElement('div', { className: "stat-value" }, stats.edges),
+          React.createElement('div', { className: "stat-label" }, 'Connections')
+        ),
+        React.createElement('div', { className: "stat-card" },
+          React.createElement('div', { className: "stat-value" }, stats.startNodes),
+          React.createElement('div', { className: "stat-label" }, 'Start')
+        ),
+        React.createElement('div', { className: "stat-card" },
+          React.createElement('div', { className: "stat-value" }, stats.endNodes),
+          React.createElement('div', { className: "stat-label" }, 'End')
+        )
+      );
+    }
 
-      // keyboard delete
-      useEffect(()=>{
-        const h = (e)=>{
-          if(e.key==='Delete' || e.key==='Backspace'){
-            const selNodes = rf.getNodes().filter(n=>n.selected)
-            const selEdges = rf.getEdges().filter(ed=>ed.selected)
-            if(selNodes.length || selEdges.length){
-              setNodes(nds=> nds.filter(n=> !n.selected))
-              setEdges(eds=> eds.filter(ed=> !ed.selected))
-            }
+    function Sidebar({addNode, actions, rtl, setRtl, nodes, edges}) {
+      const [searchTerm, setSearchTerm] = useState('');
+
+      const filteredNodeTypes = useMemo(() => {
+        return NODE_TYPES.filter(node => 
+          node.type.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+      }, [searchTerm]);
+
+      return React.createElement('aside', { className: `sidebar ${rtl ? 'rtl' : ''}` },
+        React.createElement(FlowStats, { nodes, edges }),
+        
+        React.createElement('div', { className: "group" },
+          React.createElement('input', {
+            type: "text",
+            className: "search-box",
+            placeholder: "🔍 Search node types...",
+            value: searchTerm,
+            onChange: (e) => setSearchTerm(e.target.value)
+          })
+        ),
+
+        React.createElement(FlowValidation, { nodes, edges }),
+
+        React.createElement('h3', null, '🔧 Node Types'),
+        React.createElement('div', { className: "group btn-row" },
+          filteredNodeTypes.map(n => 
+            React.createElement('button', {
+              key: n.type,
+              className: "btn node-btn",
+              title: n.type,
+              onClick: () => addNode(n.type)
+            },
+              React.createElement('span', { className: `badge ${n.color}` }),
+              React.createElement('span', null, n.type)
+            )
+          )
+        ),
+
+        React.createElement('h3', null, '🎨 Layout & Display'),
+        React.createElement('div', { className: "group btn-row" },
+          React.createElement('button', {
+            className: "btn",
+            onClick: () => setRtl(v => !v)
+          }, rtl ? '🔄 Switch to LTR' : '🔄 Switch to RTL (Hebrew)'),
+          React.createElement('button', {
+            className: "btn",
+            onClick: actions.autoLayout || (() => {})
+          }, '✨ Auto Layout'),
+          React.createElement('button', {
+            className: "btn",
+            onClick: actions.centerView || (() => {})
+          }, '🎯 Center View')
+        ),
+
+        React.createElement('h3', null, '💾 Persistence & Sharing'),
+        React.createElement('div', { className: "group btn-row" },
+          React.createElement('button', { className: "btn", onClick: actions.save || (() => {}) }, '💾 Save'),
+          React.createElement('button', { className: "btn", onClick: actions.load || (() => {}) }, '📂 Load'),
+          React.createElement('button', { className: "btn", onClick: actions.exportJson || (() => {}) }, '📤 Export JSON'),
+          React.createElement('label', { className: "btn", htmlFor: "file" },
+            '📥 Import JSON',
+            React.createElement('input', {
+              id: "file",
+              className: "file",
+              type: "file",
+              accept: "application/json",
+              onChange: actions.importJson || (() => {})
+            })
+          )
+        ),
+
+        React.createElement('h3', null, '🖼️ Export Options'),
+        React.createElement('div', { className: "group btn-row" },
+          React.createElement('button', { className: "btn", onClick: actions.exportPng || (() => {}) }, '🖼️ PNG'),
+          React.createElement('button', { className: "btn", onClick: actions.exportJpeg || (() => {}) }, '📸 JPEG'),
+          React.createElement('button', { className: "btn", onClick: actions.exportPdf || (() => {}) }, '📄 PDF'),
+          React.createElement('button', { className: "btn", onClick: actions.exportSvg || (() => {}) }, '🎨 SVG')
+        ),
+
+        React.createElement('h3', null, '📱 Share Options'),
+        React.createElement('div', { className: "group btn-row" },
+          React.createElement('button', { className: "btn", onClick: actions.sendWhatsApp || (() => {}) }, '💬 WhatsApp'),
+          React.createElement('button', { className: "btn", onClick: actions.sendEmail || (() => {}) }, '📧 Email'),
+          React.createElement('button', { className: "btn", onClick: actions.copyToClipboard || (() => {}) }, '📋 Copy Link')
+        ),
+
+        React.createElement('div', { className: "note" },
+          React.createElement('strong', null, '⌨️ Hotkeys:'),
+          React.createElement('br'),
+          '• Double-click node to rename',
+          React.createElement('br'),
+          '• Del/Backspace to delete selected',
+          React.createElement('br'),
+          '• Ctrl/Cmd+Z undo',
+          React.createElement('br'),
+          '• Ctrl/Cmd+Y redo',
+          React.createElement('br'),
+          '• Shift+Drag box select',
+          React.createElement('br'),
+          '• Space+Drag pan canvas',
+          React.createElement('br'),
+          '• Ctrl/Cmd+A select all'
+        )
+      );
+    }
+
+    function Header({flowName, setFlowName}) {
+      return React.createElement('header', null,
+        React.createElement('div', { className: "title" },
+          React.createElement('span', null, '🤖 VoiceBot Flow Editor'),
+          React.createElement('input', {
+            value: flowName,
+            onChange: e => setFlowName(e.target.value),
+            placeholder: "Enter flow name..."
+          })
+        ),
+        React.createElement('div', { style: { display: 'flex', gap: '12px', alignItems: 'center' } },
+          React.createElement('div', { className: "pill" }, '✨ Advanced Edition')
+        )
+      );
+    }
+
+    function Editor({rtl}) {
+      const initialNodes = useMemo(() => [
+        { 
+          id: 'start', 
+          type: 'input', 
+          position: {x: 400, y: 100}, 
+          data: {label: '🚀 Start Call'}, 
+          style: {
+            background: 'linear-gradient(135deg, #064e3b, #059669)',
+            color: '#ecfdf5',
+            border: '2px solid #10b981',
+            borderRadius: '16px',
+            padding: '12px',
+            boxShadow: '0 8px 32px rgba(16, 185, 129, 0.3)'
           }
         }
-        window.addEventListener('keydown',h); return ()=>window.removeEventListener('keydown',h)
-      },[])
+      ], []);
 
-      // persistence helpers exposed via ref on window for Sidebar callbacks
-      const save = useCallback(()=>{
-        const state = {nodes, edges, flowName: window.__flowName||'Untitled'}
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); toast('Saved to browser')
-      },[nodes,edges])
-      const load = useCallback(()=>{
-        const s = localStorage.getItem(STORAGE_KEY); if(!s){toast('Nothing to load'); return}
-        try{ const {nodes,edges,flowName} = JSON.parse(s); setNodes(nodes||[]); setEdges(edges||[]); if(flowName) window.__setFlowName(flowName); toast('Loaded')}catch{toast('Bad data')}
-      },[])
-      const exportJson = useCallback(()=>{
-        const blob = new Blob([JSON.stringify({name:window.__flowName||'Untitled', nodes, edges}, null, 2)], {type:'application/json'})
-        const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=(window.__flowName||'flow')+'.json'; a.click(); URL.revokeObjectURL(a.href)
-      },[nodes,edges])
-      const importJson = useCallback((e)=>{
-        const f = e.target.files?.[0]; if(!f) return; const fr = new FileReader(); fr.onload=()=>{
-          try{ const obj = JSON.parse(fr.result); setNodes(obj.nodes||[]); setEdges(obj.edges||[]); if(obj.name) window.__setFlowName(obj.name); toast('Imported') }catch{ toast('Invalid JSON') }
-        }; fr.readAsText(f)
-      },[])
-      const exportPng = useCallback(async()=>{
-        const el = document.querySelector('#rf');
-        const dataUrl = await htmlToImage.toPng(el, {backgroundColor:'#0b1220'});
-        const a = document.createElement('a'); a.href=dataUrl; a.download=(window.__flowName||'flow')+'.png'; a.click();
-      },[])
+      const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
+      const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+      const [contextMenu, setContextMenu] = useState(null);
+      const [mode, setMode] = useState('edit');
+      const rf = useReactFlow();
 
-      // Export the current canvas as a JPEG file.  Uses html-to-image to
-      // convert the rendered flow diagram into a JPEG data URL and then
-      // triggers a download.  JPEG is a more compact alternative to PNG.
-      const exportJpeg = useCallback(async()=>{
-        const el = document.querySelector('#rf');
-        const dataUrl = await htmlToImage.toJpeg(el, {backgroundColor:'#0b1220', quality:0.95});
-        const a = document.createElement('a'); a.href=dataUrl; a.download=(window.__flowName||'flow')+'.jpg'; a.click();
-      },[])
+      // Auto-save functionality
+      useEffect(() => {
+        const interval = setInterval(() => {
+          const state = { nodes, edges, flowName: window.__flowName || 'Untitled' };
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        }, AUTOSAVE_INTERVAL);
+        return () => clearInterval(interval);
+      }, [nodes, edges]);
 
-      // Export the current canvas as a PDF.  First generates a PNG image from
-      // the canvas, then embeds it into a PDF using jsPDF.  The PDF will
-      // match the canvas dimensions (landscape) and include the flow diagram
-      // on a single page.  This allows customers to share a printable copy of
-      // their flow.
-      const exportPdf = useCallback(async()=>{
-        const el = document.querySelector('#rf');
-        const dataUrl = await htmlToImage.toPng(el, {backgroundColor:'#0b1220'});
-        // Determine canvas dimensions
-        const width = el.clientWidth;
-        const height = el.clientHeight;
-        const pdf = new jsPDF({orientation: width > height ? 'landscape' : 'portrait', unit:'px', format:[width, height]});
-        pdf.addImage(dataUrl, 'PNG', 0, 0, width, height);
-        pdf.save((window.__flowName||'flow')+'.pdf');
-      },[])
-      const sendWhatsApp = useCallback(()=>{
-        const payload = encodeURIComponent(JSON.stringify({name:window.__flowName||'Untitled', nodes, edges}))
-        const url = `https://wa.me/?text=${payload}`; window.open(url, '_blank')
-      },[nodes,edges])
-      const sendEmail = useCallback(()=>{
-        // Compose an email that includes an embedded PNG of the current flow.
-        // We capture the canvas as a PNG and embed the data URI in the mail body.
-        // Note: attachments cannot be added via mailto links, but including
-        // the image data URI allows recipients to view or download the image
-        // directly from the email body.
-        const send = async() => {
-          const el = document.querySelector('#rf');
-          const dataUrl = await htmlToImage.toPng(el, {backgroundColor:'#0b1220'});
-          const to = (window.__presetEmails||DEFAULT_EMAILS).join(',');
-          const subj = encodeURIComponent(`[Flow] ${(window.__flowName||'Untitled')}`);
-          const body = encodeURIComponent(`Flow diagram for "${window.__flowName||'Untitled'}"\n\nCopy and paste the following link into your browser to view the image:\n${dataUrl}`);
-          window.location.href = `mailto:${to}?subject=${subj}&body=${body}`;
+      // Enhanced connection with animation
+      const onConnect = useCallback((params) => {
+        setEdges(eds => addEdge({
+          ...params,
+          animated: true,
+          style: { stroke: '#22d3ee', strokeWidth: 3 },
+          markerEnd: { type: MarkerType.ArrowClosed, color: '#22d3ee' }
+        }, eds));
+        toast('Nodes connected successfully', 'success');
+      }, []);
+
+      // Enhanced node addition with smart positioning
+      const addNode = useCallback((type) => {
+        const id = 'node_' + Date.now();
+        const viewport = rf.getViewport();
+        const position = rf.screenToFlowPosition({
+          x: window.innerWidth / 2 - viewport.x,
+          y: window.innerHeight / 2 - viewport.y
+        });
+
+        const colorMap = {
+          '🚀 Trigger/Start': '#16a34a', '🗣️ Speak/Play': '#2563eb', '📝 Collect Input': '#0d9488',
+          '📋 Menu/Classification': '#7c3aed', '🤔 Decision/If': '#d97706', '🔄 Switch/Router': '#334155',
+          '🌐 HTTP/Webhook': '#e11d48', '📊 Set Variables': '#0d9488', '⏰ Delay/Wait': '#334155',
+          '📞 Transfer/Call Control': '#2563eb', '❌ End/Hangup': '#dc2626'
         };
-        send();
-      },[nodes,edges])
 
-      // expose for sidebar
-      window.__save = save;
-      window.__load = load;
-      window.__exportJson = exportJson;
-      window.__importJson = importJson;
-      window.__exportPng = exportPng;
-      window.__exportJpeg = exportJpeg;
-      window.__exportPdf = exportPdf;
-      window.__sendWhatsApp = sendWhatsApp;
-      window.__sendEmail = sendEmail;
-      window.__addNode = addNode;
+        const newNode = {
+          id,
+          position,
+          type: type.includes('Start') ? 'input' : type.includes('End') ? 'output' : 'default',
+          data: { label: type },
+          style: {
+            background: `linear-gradient(135deg, ${colorMap[type] || '#1f2937'}, ${colorMap[type] || '#1f2937'}dd)`,
+            color: '#ffffff',
+            border: `2px solid ${colorMap[type] || '#1f2937'}`,
+            borderRadius: '16px',
+            padding: '12px 16px',
+            boxShadow: `0 8px 32px ${colorMap[type] || '#1f2937'}40`,
+            minWidth: '150px',
+            fontSize: '13px',
+            fontWeight: '600'
+          }
+        };
 
-      return (
-        <div style={{height:'100%', position:'relative'}} className={rtl?'rtl':''}>
-          <ReactFlow id="rf"
-            nodes={nodes} edges={edges}
-            onNodesChange={onNodesChange} onEdgesChange={onEdgesChange}
-            onConnect={onConnect}
-            onNodeDoubleClick={onNodeDoubleClick}
-            fitView
-          >
-            <MiniMap pannable zoomable/>
-            <Controls showInteractive={false}/>
-            <Background gap={18} size={1} color="#1f2937"/>
-          </ReactFlow>
-        </div>
-      )
+        setNodes(nds => [...nds, newNode]);
+        toast(`Added ${type}`, 'success');
+      }, [rf, setNodes]);
+
+      // Enhanced node double-click with better UX
+      const onNodeDoubleClick = useCallback((_, node) => {
+        const newLabel = prompt('Enter new name for this node:', node.data.label);
+        if (newLabel && newLabel.trim() !== '') {
+          setNodes(nds => nds.map(n => 
+            n.id === node.id 
+              ? { ...n, data: { ...n.data, label: newLabel.trim() } }
+              : n
+          ));
+          toast('Node renamed successfully', 'success');
+        }
+      }, [setNodes]);
+
+// Context menu handling
+      const onNodeContextMenu = useCallback((event, node) => {
+        event.preventDefault();
+        setContextMenu({
+          x: event.clientX,
+          y: event.clientY,
+          node
+        });
+      }, []);
+
+      const onPaneClick = useCallback(() => {
+        setContextMenu(null);
+      }, []);
+
+      // Enhanced keyboard shortcuts
+      useEffect(() => {
+        const handleKeyDown = (e) => {
+          if (e.key === 'Delete' || e.key === 'Backspace') {
+            const selectedNodeIds = nodes.filter(n => n.selected).map(n => n.id);
+            const selectedEdgeIds = edges.filter(e => e.selected).map(e => e.id);
+            
+            if (selectedNodeIds.length || selectedEdgeIds.length) {
+              setNodes(nds => nds.filter(n => !n.selected));
+              setEdges(eds => eds.filter(e => !e.selected));
+              toast(`Deleted ${selectedNodeIds.length} nodes and ${selectedEdgeIds.length} connections`, 'info');
+            }
+          }
+          
+          if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
+            e.preventDefault();
+            setNodes(nds => nds.map(n => ({ ...n, selected: true })));
+            setEdges(eds => eds.map(e => ({ ...e, selected: true })));
+            toast('All items selected', 'info');
+          }
+
+          if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+            e.preventDefault();
+            if (window.__actions && window.__actions.save) window.__actions.save();
+          }
+
+          if (e.key === 'Escape') {
+            setContextMenu(null);
+            setNodes(nds => nds.map(n => ({ ...n, selected: false })));
+            setEdges(eds => eds.map(e => ({ ...e, selected: false })));
+          }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+      }, [nodes, edges, setNodes, setEdges]);
+
+      // Auto-layout function
+      const autoLayout = useCallback(() => {
+        const layoutedNodes = nodes.map((node, index) => ({
+          ...node,
+          position: {
+            x: 100 + (index % 4) * 250,
+            y: 100 + Math.floor(index / 4) * 150
+          }
+        }));
+        setNodes(layoutedNodes);
+        toast('Auto-layout applied', 'success');
+      }, [nodes, setNodes]);
+
+      // Center view function
+      const centerView = useCallback(() => {
+        rf.fitView({ padding: 50, duration: 800 });
+        toast('View centered', 'info');
+      }, [rf]);
+
+      // Enhanced persistence functions
+      const save = useCallback(() => {
+        const state = { 
+          nodes, 
+          edges, 
+          flowName: window.__flowName || 'Untitled', 
+          timestamp: new Date().toISOString() 
+        };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        toast('Flow saved successfully', 'success');
+      }, [nodes, edges]);
+
+      const load = useCallback(() => {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (!saved) {
+          toast('No saved flow found', 'warning');
+          return;
+        }
+        try {
+          const { nodes: savedNodes, edges: savedEdges, flowName } = JSON.parse(saved);
+          setNodes(savedNodes || []);
+          setEdges(savedEdges || []);
+          if (flowName && window.__setFlowName) {
+            window.__setFlowName(flowName);
+          }
+          toast('Flow loaded successfully', 'success');
+        } catch (error) {
+          toast('Failed to load flow', 'error');
+        }
+      }, [setNodes, setEdges]);
+
+      const exportJson = useCallback(() => {
+        const data = {
+          name: window.__flowName || 'Untitled',
+          nodes,
+          edges,
+          metadata: {
+            version: '2.0',
+            created: new Date().toISOString(),
+            nodeCount: nodes.length,
+            edgeCount: edges.length
+          }
+        };
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${window.__flowName || 'flow'}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        toast('JSON exported successfully', 'success');
+      }, [nodes, edges]);
+
+      const importJson = useCallback((e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        
+        const reader = new FileReader();
+        reader.onload = () => {
+          try {
+            const data = JSON.parse(reader.result);
+            setNodes(data.nodes || []);
+            setEdges(data.edges || []);
+            if (data.name && window.__setFlowName) {
+              window.__setFlowName(data.name);
+            }
+            toast('Flow imported successfully', 'success');
+          } catch (error) {
+            toast('Invalid JSON file', 'error');
+          }
+        };
+        reader.readAsText(file);
+        e.target.value = '';
+      }, [setNodes, setEdges]);
+
+      // Enhanced export functions
+      const exportPng = useCallback(async () => {
+        try {
+          const element = document.querySelector('#rf');
+          const dataUrl = await htmlToImage.toPng(element, {
+            backgroundColor: '#0b1220',
+            quality: 1.0,
+            pixelRatio: 2
+          });
+          const a = document.createElement('a');
+          a.href = dataUrl;
+          a.download = `${window.__flowName || 'flow'}.png`;
+          a.click();
+          toast('PNG exported successfully', 'success');
+        } catch (error) {
+          toast('Export failed', 'error');
+        }
+      }, []);
+
+      const exportJpeg = useCallback(async () => {
+        try {
+          const element = document.querySelector('#rf');
+          const dataUrl = await htmlToImage.toJpeg(element, {
+            backgroundColor: '#0b1220',
+            quality: 0.95,
+            pixelRatio: 2
+          });
+          const a = document.createElement('a');
+          a.href = dataUrl;
+          a.download = `${window.__flowName || 'flow'}.jpg`;
+          a.click();
+          toast('JPEG exported successfully', 'success');
+        } catch (error) {
+          toast('Export failed', 'error');
+        }
+      }, []);
+
+      const exportSvg = useCallback(async () => {
+        try {
+          const element = document.querySelector('#rf');
+          const dataUrl = await htmlToImage.toSvg(element, {
+            backgroundColor: '#0b1220'
+          });
+          const a = document.createElement('a');
+          a.href = dataUrl;
+          a.download = `${window.__flowName || 'flow'}.svg`;
+          a.click();
+          toast('SVG exported successfully', 'success');
+        } catch (error) {
+          toast('Export failed', 'error');
+        }
+      }, []);
+
+      const exportPdf = useCallback(async () => {
+        try {
+          const element = document.querySelector('#rf');
+          const dataUrl = await htmlToImage.toPng(element, {
+            backgroundColor: '#0b1220',
+            quality: 1.0,
+            pixelRatio: 2
+          });
+          
+          const img = new Image();
+          img.onload = () => {
+            const pdf = new jsPDF({
+              orientation: img.width > img.height ? 'landscape' : 'portrait',
+              unit: 'px',
+              format: [img.width, img.height]
+            });
+            pdf.addImage(dataUrl, 'PNG', 0, 0, img.width, img.height);
+            pdf.save(`${window.__flowName || 'flow'}.pdf`);
+            toast('PDF exported successfully', 'success');
+          };
+          img.src = dataUrl;
+        } catch (error) {
+          toast('PDF export failed', 'error');
+        }
+      }, []);
+
+      // Enhanced sharing functions
+      const sendWhatsApp = useCallback(() => {
+        const message = `VoiceBot Flow: "${window.__flowName || 'Untitled'}"\n\nNodes: ${nodes.length}\nConnections: ${edges.length}\n\nCreated with VoiceBot Flow Editor`;
+        const url = `https://wa.me/?text=${encodeURIComponent(message)}`;
+        window.open(url, '_blank');
+        toast('Shared to WhatsApp', 'success');
+      }, [nodes, edges]);
+
+      const sendEmail = useCallback(async () => {
+        try {
+          const element = document.querySelector('#rf');
+          const dataUrl = await htmlToImage.toPng(element, {
+            backgroundColor: '#0b1220',
+            quality: 0.8
+          });
+          
+          const subject = encodeURIComponent(`VoiceBot Flow: ${window.__flowName || 'Untitled'}`);
+          const body = encodeURIComponent(
+            `Hi,\n\nI'm sharing a VoiceBot flow diagram with you:\n\n` +
+            `Flow Name: ${window.__flowName || 'Untitled'}\n` +
+            `Nodes: ${nodes.length}\n` +
+            `Connections: ${edges.length}\n\n` +
+            `You can view the flow diagram by copying this link to your browser:\n${dataUrl}\n\n` +
+            `Created with VoiceBot Flow Editor`
+          );
+          
+          const mailtoUrl = `mailto:${DEFAULT_EMAILS.join(',')}?subject=${subject}&body=${body}`;
+          window.location.href = mailtoUrl;
+          toast('Email composed', 'success');
+        } catch (error) {
+          toast('Email sharing failed', 'error');
+        }
+      }, [nodes, edges]);
+
+      const copyToClipboard = useCallback(async () => {
+        const flowData = {
+          name: window.__flowName || 'Untitled',
+          nodes: nodes.length,
+          edges: edges.length,
+          url: window.location.href
+        };
+        
+        const text = `VoiceBot Flow: "${flowData.name}"\nNodes: ${flowData.nodes} | Connections: ${flowData.edges}\nCreated with VoiceBot Flow Editor\n${flowData.url}`;
+        
+        try {
+          await navigator.clipboard.writeText(text);
+          toast('Link copied to clipboard', 'success');
+        } catch (error) {
+          toast('Failed to copy to clipboard', 'error');
+        }
+      }, [nodes, edges]);
+
+      // Clear all function
+      const clearAll = useCallback(() => {
+        if (confirm('Are you sure you want to clear all nodes and connections?')) {
+          setNodes([]);
+          setEdges([]);
+          toast('All nodes and connections cleared', 'info');
+        }
+      }, [setNodes, setEdges]);
+
+      // Expose actions for sidebar
+      const actions = useMemo(() => ({
+        save, load, exportJson, importJson, exportPng, exportJpeg, exportSvg, exportPdf,
+        sendWhatsApp, sendEmail, copyToClipboard, autoLayout, centerView, clearAll
+      }), [save, load, exportJson, importJson, exportPng, exportJpeg, exportSvg, exportPdf,
+          sendWhatsApp, sendEmail, copyToClipboard, autoLayout, centerView, clearAll]);
+
+      // Store actions globally for sidebar access
+      useEffect(() => {
+        window.__actions = actions;
+        window.__addNode = addNode;
+        window.__nodes = nodes;
+        window.__edges = edges;
+      }, [actions, addNode, nodes, edges]);
+
+      return React.createElement('div', { 
+        style: { height: '100%', position: 'relative' }, 
+        className: rtl ? 'rtl' : '' 
+      },
+        React.createElement(ReactFlow, {
+          id: "rf",
+          nodes: nodes,
+          edges: edges,
+          onNodesChange: onNodesChange,
+          onEdgesChange: onEdgesChange,
+          onConnect: onConnect,
+          onNodeDoubleClick: onNodeDoubleClick,
+          onNodeContextMenu: onNodeContextMenu,
+          onPaneClick: onPaneClick,
+          fitView: true,
+          attributionPosition: "bottom-left",
+          defaultViewport: { x: 0, y: 0, zoom: 1 },
+          minZoom: 0.1,
+          maxZoom: 4,
+          snapToGrid: true,
+          snapGrid: [15, 15]
+        },
+          React.createElement(Background, { gap: 20, size: 1, color: "#1f2937" }),
+          React.createElement(Controls, { showInteractive: false }),
+          React.createElement(MiniMap, {
+            nodeColor: (node) => {
+              if (node.style?.background) {
+                return node.style.background.includes('gradient') 
+                  ? '#22d3ee' 
+                  : node.style.background;
+              }
+              return '#1f2937';
+            },
+            maskColor: "rgba(11, 18, 32, 0.8)",
+            style: {
+              backgroundColor: 'rgba(11, 18, 32, 0.9)',
+              border: '1px solid #1f2937'
+            }
+          }),
+          
+          React.createElement(Panel, { position: "top-center" },
+            React.createElement('div', { className: "floating-toolbar" },
+              React.createElement('div', { className: "mode-toggle" },
+                React.createElement('button', {
+                  className: `mode-btn ${mode === 'edit' ? 'active' : ''}`,
+                  onClick: () => setMode('edit')
+                }, 'Edit'),
+                React.createElement('button', {
+                  className: `mode-btn ${mode === 'view' ? 'active' : ''}`,
+                  onClick: () => setMode('view')
+                }, 'View'),
+                React.createElement('button', {
+                  className: `mode-btn ${mode === 'debug' ? 'active' : ''}`,
+                  onClick: () => setMode('debug')
+                }, 'Debug')
+              ),
+              React.createElement('button', { className: "toolbar-btn", onClick: centerView }, 'Center'),
+              React.createElement('button', { className: "toolbar-btn", onClick: autoLayout }, 'Auto Layout'),
+              React.createElement('button', { className: "toolbar-btn", onClick: clearAll }, 'Clear All')
+            )
+          )
+        ),
+
+        // Context Menu
+        contextMenu && React.createElement('div', {
+          className: "context-menu",
+          style: {
+            left: contextMenu.x,
+            top: contextMenu.y
+          },
+          onClick: () => setContextMenu(null)
+        },
+          React.createElement('div', {
+            className: "context-menu-item",
+            onClick: () => {
+              const newLabel = prompt('Enter new name:', contextMenu.node.data.label);
+              if (newLabel) {
+                setNodes(nds => nds.map(n => 
+                  n.id === contextMenu.node.id 
+                    ? { ...n, data: { ...n.data, label: newLabel } }
+                    : n
+                ));
+              }
+              setContextMenu(null);
+            }
+          }, 'Rename'),
+          React.createElement('div', {
+            className: "context-menu-item",
+            onClick: () => {
+              navigator.clipboard.writeText(JSON.stringify(contextMenu.node, null, 2));
+              toast('Node copied to clipboard', 'info');
+              setContextMenu(null);
+            }
+          }, 'Copy'),
+          React.createElement('div', {
+            className: "context-menu-item",
+            onClick: () => {
+              setNodes(nds => nds.filter(n => n.id !== contextMenu.node.id));
+              setEdges(eds => eds.filter(e => 
+                e.source !== contextMenu.node.id && e.target !== contextMenu.node.id
+              ));
+              toast('Node deleted', 'info');
+              setContextMenu(null);
+            }
+          }, 'Delete')
+        )
+      );
     }
 
-    function App(){
-      const [flowName, setFlowName] = useState('New Flow')
-      const [rtl, setRtl] = useState(false)
-      useEffect(()=>{ window.__flowName = flowName; window.__setFlowName=setFlowName },[flowName])
+    function App() {
+      const [flowName, setFlowName] = useState('New Advanced Flow');
+      const [rtl, setRtl] = useState(false);
 
-      return (
-        <div className={'app '+(rtl?'rtl':'') }>
-          <Header flowName={flowName} setFlowName={setFlowName} />
-          <Sidebar
-            addNode={(t)=>window.__addNode(t)}
-            save={()=>window.__save()} load={()=>window.__load()}
-            exportJson={()=>window.__exportJson()}
-            importJson={(e)=>window.__importJson(e)}
-            exportPng={()=>window.__exportPng()}
-            exportJpeg={()=>window.__exportJpeg()}
-            exportPdf={()=>window.__exportPdf()}
-            sendWhatsApp={()=>window.__sendWhatsApp()}
-            sendEmail={()=>window.__sendEmail()}
-            rtl={rtl} setRtl={setRtl}
-          />
-          <main>
-            <div className="toolbar">
-              <span className="pill">Flow: {flowName}</span>
-              <span className="pill">Nodes connect by dragging handles</span>
-            </div>
-            <Editor rtl={rtl}/>
-          </main>
-        </div>
-      )
+      // Store flow name globally
+      useEffect(() => {
+        window.__flowName = flowName;
+        window.__setFlowName = setFlowName;
+      }, [flowName]);
+
+      // Load saved state on mount
+      useEffect(() => {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+          try {
+            const { flowName: savedName } = JSON.parse(saved);
+            if (savedName) setFlowName(savedName);
+          } catch (error) {
+            console.warn('Failed to load saved state');
+          }
+        }
+      }, []);
+
+      return React.createElement('div', { className: `app ${rtl ? 'rtl' : ''}` },
+        React.createElement(Header, { flowName, setFlowName }),
+        React.createElement(Sidebar, {
+          addNode: (type) => window.__addNode && window.__addNode(type),
+          actions: window.__actions || {},
+          rtl,
+          setRtl,
+          nodes: window.__nodes || [],
+          edges: window.__edges || []
+        }),
+        React.createElement('main', null,
+          React.createElement('div', { className: "toolbar" },
+            React.createElement('span', { className: "pill" }, `Flow: ${flowName}`),
+            React.createElement('span', { className: "pill" }, 'Drag handles to connect nodes'),
+            React.createElement('span', { className: "pill" }, 'Use keyboard shortcuts for faster editing'),
+            React.createElement('span', { className: "pill" }, 'Auto-save every 3 seconds')
+          ),
+          React.createElement(Editor, { rtl })
+        )
+      );
     }
 
-    createRoot(document.getElementById('root')).render(<App />)
+    // Initialize the app
+    createRoot(document.getElementById('root')).render(React.createElement(App));
   </script>
 </body>
 </html>
