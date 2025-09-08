@@ -1682,7 +1682,10 @@ function updateTempConnectionLine(currentX, currentY) {
             svg.style.top = minY + 'px';
             svg.style.width = (maxX - minX) + 'px';
             svg.style.height = (maxY - minY) + 'px';
-            svg.style.pointerEvents = 'stroke';
+            // Ensure the connection line does not block mouse interactions on nodes.
+            // Use pointer-events: none so the SVG won't intercept events.  The zIndex remains low
+            // so that nodes appear above connections.
+            svg.style.pointerEvents = 'none';
             svg.style.zIndex = '1';
             
             const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
