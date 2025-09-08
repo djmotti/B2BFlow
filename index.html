@@ -986,10 +986,6 @@
       // Temporary connection line for dragging
       let tempConnectionLine = null;
       let isDraggingConnection = false;
-
-      // Variables to throttle temporary line updates for smoother mouse tracking
-      let tempLineAnimationFrame = null;
-      let tempLineCoords = { x: 0, y: 0 };
       
       // Canvas state
       let canvasScale = 1;
@@ -1345,36 +1341,64 @@ function createTempConnectionLine(startX, startY) {
   viewport.appendChild(tempConnectionLine);
 }
 
-      // Update temporary connection line position
-      function updateTempConnectionLine(currentX, currentY) {
-        if (!tempConnectionLine || !connectionStart) return;
-        
-        const path = tempConnectionLine.querySelector('#temp-connection-path');
-        if (!path) return;
-        
-        const viewport = document.getElementById('canvas-viewport');
-        const rect = viewport.getBoundingClientRect();
-        
-        // Calculate start position from the connection point
-        const startNode = connectionStart.node;
-        const startX = connectionStart.isInput ? startNode.x : startNode.x + 150;
-        const startY = startNode.y + 25;
-        
-        // Calculate current mouse position relative to viewport
-        const endX = (currentX - rect.left - canvasX) / canvasScale;
-        const endY = (currentY - rect.top - canvasY) / canvasScale;
-        
-        // Create curved path
-        const dx = endX - startX;
-        const curvature = Math.abs(dx) * 0.3;
-        
-        const pathData = `M ${startX} ${startY} C ${startX + curvature} ${startY} ${endX - curvature} ${endY} ${endX} ${endY}`;
-        path.setAttribute('d', pathData);
+function updateTempConnectionLine(currentX, currentY) {
+  // עדכון רק כאשר החיבור בגרירה פעילה
+  if (!tempConnectionLine || !connectionStart || !isDraggingConnection) return;
 
-  // Animation for the dashed line
+  const path = tempConnectionLine.querySelector('#temp-connection-path');
+  if (!path) return;
+  // Obtain the canvas viewport rect for coordinate conversion
+  const viewport = document.getElementById('canvas-viewport');
+  const rect = viewport.getBoundingClientRect();
+
+  // Determine the actual pixel position of the start connection point.
+  let startX, startY;
+  try {
+    const startNode = connectionStart.node;
+    const startNodeEl = document.getElementById(startNode.id);
+    // Choose the appropriate connection point on the node
+    let selector;
+    if (connectionStart.isInput) {
+      // Input connection point is the left side connection
+      selector = '.input-connection-point';
+    } else {
+      // Output connection point is the right side connection
+      // There can be multiple .connection-point elements, so select the one that is not input
+      selector = '.connection-point:not(.input-connection-point)';
+    }
+    const startPointEl = startNodeEl.querySelector(selector);
+    if (startPointEl) {
+      const cpRect = startPointEl.getBoundingClientRect();
+      // Compute the center of the connection point relative to the viewport coordinate system
+      startX = (cpRect.left + cpRect.width / 2 - rect.left - canvasX) / canvasScale;
+      startY = (cpRect.top + cpRect.height / 2 - rect.top - canvasY) / canvasScale;
+    } else {
+      // Fallback: approximate using node position if element isn't found
+      startX = connectionStart.isInput ? startNode.x : startNode.x + 150;
+      startY = startNode.y + 25;
+    }
+  } catch (err) {
+    // Fallback if any error occurs
+    const startNode = connectionStart.node;
+    startX = connectionStart.isInput ? startNode.x : startNode.x + 150;
+    startY = startNode.y + 25;
+  }
+
+  // Calculate current mouse position relative to the viewport and canvas transform
+  const endX = (currentX - rect.left - canvasX) / canvasScale;
+  const endY = (currentY - rect.top - canvasY) / canvasScale;
+
+  // Compute control point curvature for a smooth bezier curve
+  const dx = endX - startX;
+  const curvature = Math.abs(dx) * 0.3;
+
+  // Construct the path data string
+  const pathData = `M ${startX} ${startY} C ${startX + curvature} ${startY} ${endX - curvature} ${endY} ${endX} ${endY}`;
+  path.setAttribute('d', pathData);
+
+  // Animate the dashed line for visual feedback
   path.style.animation = 'dash 0.5s linear infinite';
-
-      }
+}
 
       // Remove temporary connection line
       function removeTempConnectionLine() {
@@ -1566,6 +1590,12 @@ function createTempConnectionLine(startX, startY) {
                 
                 createConnection(fromNode.id, toNode.id);
                 showToast('Nodes connected!', 'success');
+
+      // איפוס משתנים לאחר סיום הקישור
+      isDraggingConnection = false;
+      connectionStart = null;
+      removeTempConnectionLine();
+
               }
             }
           });
@@ -1652,8 +1682,7 @@ function createTempConnectionLine(startX, startY) {
             svg.style.top = minY + 'px';
             svg.style.width = (maxX - minX) + 'px';
             svg.style.height = (maxY - minY) + 'px';
-            // Disable pointer events on connection lines so they do not interfere with node dragging
-            svg.style.pointerEvents = 'none';
+            svg.style.pointerEvents = 'stroke';
             svg.style.zIndex = '1';
             
             const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
@@ -1697,13 +1726,6 @@ function createTempConnectionLine(startX, startY) {
             marker.appendChild(polygon);
             defs.appendChild(marker);
             svg.appendChild(defs);
-
-            // Ensure the connection and its components do not intercept pointer events
-            // Prevent the connection path or its marker from blocking node interactions
-            path.style.pointerEvents = 'none';
-            polygon.style.pointerEvents = 'none';
-            marker.style.pointerEvents = 'none';
-            defs.style.pointerEvents = 'none';
             
             path.setAttribute('marker-end', `url(#${markerId})`);
             
@@ -1769,12 +1791,7 @@ function createTempConnectionLine(startX, startY) {
       }
 
       // File operations with validation
-      /**
-       * Save the current flow to localStorage. When called with captureImage=true,
-       * also export an image snapshot of the current flow and prompt the user to download it.
-       * @param {boolean} captureImage Whether to generate and download an image of the flow
-       */
-      function saveFlow(captureImage = false) {
+      function saveFlow() {
         // Pre-save validation
         validateFlow();
         
@@ -1791,162 +1808,7 @@ function createTempConnectionLine(startX, startY) {
         
         localStorage.setItem('voicebot-flow-ultimate', JSON.stringify(flowData));
         markSaved();
-
-        if (captureImage) {
-          // Only generate the image when explicitly requested by the user
-          try {
-            captureFlowImage(flowData.name || 'flow');
-            showToast('Flow saved and image downloaded!', 'success');
-          } catch (err) {
-            console.error(err);
-            showToast('Flow saved, but failed to capture image', 'warning');
-          }
-        } else {
-          showToast('Flow saved successfully!', 'success');
-        }
-      }
-
-      /**
-       * Capture the current flow layout as an image and trigger a download.
-       * The image will include all nodes and connections within the flow.
-       * @param {string} filenamePrefix Prefix to use for the downloaded file name.
-       */
-      function captureFlowImage(filenamePrefix) {
-        if (!nodes || nodes.length === 0) {
-          return;
-        }
-        // Determine bounding box of all nodes and connection endpoints
-        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-        // Include node bounds
-        nodes.forEach(n => {
-          minX = Math.min(minX, n.x);
-          minY = Math.min(minY, n.y);
-          maxX = Math.max(maxX, n.x + 150);
-          maxY = Math.max(maxY, n.y + 50);
-        });
-        // Include connection endpoints
-        connections.forEach(c => {
-          const fromNode = nodes.find(n => n.id === c.from);
-          const toNode = nodes.find(n => n.id === c.to);
-          if (fromNode && toNode) {
-            const fx = fromNode.x + 150;
-            const fy = fromNode.y + 25;
-            const tx = toNode.x;
-            const ty = toNode.y + 25;
-            minX = Math.min(minX, fx, tx);
-            minY = Math.min(minY, fy, ty);
-            maxX = Math.max(maxX, fx, tx);
-            maxY = Math.max(maxY, fy, ty);
-          }
-        });
-        const padding = 40;
-        const width = Math.max(1, Math.ceil(maxX - minX + padding * 2));
-        const height = Math.max(1, Math.ceil(maxY - minY + padding * 2));
-        // Create offscreen canvas
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        // Fill background similar to app background
-        ctx.fillStyle = '#0b1220';
-        ctx.fillRect(0, 0, width, height);
-        // Draw connections first (under nodes)
-        connections.forEach(c => {
-          const fromNode = nodes.find(n => n.id === c.from);
-          const toNode = nodes.find(n => n.id === c.to);
-          if (!fromNode || !toNode) return;
-          // Compute relative coordinates
-          const startX = (fromNode.x + 150) - minX + padding;
-          const startY = (fromNode.y + 25) - minY + padding;
-          const endX = toNode.x - minX + padding;
-          const endY = (toNode.y + 25) - minY + padding;
-          const dx = endX - startX;
-          const dy = endY - startY;
-          const distance = Math.sqrt(dx * dx + dy * dy);
-          const curvature = Math.min(distance * 0.3, 100);
-          const color = c.color || connectionColor || '#ffff00';
-          ctx.strokeStyle = color;
-          ctx.lineWidth = 3;
-          ctx.lineCap = 'round';
-          ctx.lineJoin = 'round';
-          ctx.beginPath();
-          ctx.moveTo(startX, startY);
-          ctx.bezierCurveTo(startX + curvature, startY, endX - curvature, endY, endX, endY);
-          ctx.stroke();
-          // Draw arrow head
-          const angle = Math.atan2(endY - startY, endX - startX);
-          const arrowLength = 10;
-          const arrowWidth = 6;
-          const arrowX1 = endX - arrowLength * Math.cos(angle) - arrowWidth * Math.sin(angle);
-          const arrowY1 = endY - arrowLength * Math.sin(angle) + arrowWidth * Math.cos(angle);
-          const arrowX2 = endX - arrowLength * Math.cos(angle) + arrowWidth * Math.sin(angle);
-          const arrowY2 = endY - arrowLength * Math.sin(angle) - arrowWidth * Math.cos(angle);
-          ctx.fillStyle = color;
-          ctx.beginPath();
-          ctx.moveTo(endX, endY);
-          ctx.lineTo(arrowX1, arrowY1);
-          ctx.lineTo(arrowX2, arrowY2);
-          ctx.closePath();
-          ctx.fill();
-        });
-        // Draw nodes on top
-        nodes.forEach(n => {
-          const x = n.x - minX + padding;
-          const y = n.y - minY + padding;
-          const w = 150;
-          const h = 50;
-          // Gradient background
-          const grad = ctx.createLinearGradient(x, y, x + w, y + h);
-          grad.addColorStop(0, n.color);
-          // Append semi-transparent suffix 'dd' to hex color if not already
-          let colorWithAlpha = n.color;
-          if (/^#([0-9a-fA-F]{6})$/.test(n.color)) {
-            colorWithAlpha = n.color + 'dd';
-          }
-          grad.addColorStop(1, colorWithAlpha);
-          // Draw rounded rectangle
-          const radius = 12;
-          ctx.fillStyle = grad;
-          ctx.beginPath();
-          ctx.moveTo(x + radius, y);
-          ctx.lineTo(x + w - radius, y);
-          ctx.quadraticCurveTo(x + w, y, x + w, y + radius);
-          ctx.lineTo(x + w, y + h - radius);
-          ctx.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
-          ctx.lineTo(x + radius, y + h);
-          ctx.quadraticCurveTo(x, y + h, x, y + h - radius);
-          ctx.lineTo(x, y + radius);
-          ctx.quadraticCurveTo(x, y, x + radius, y);
-          ctx.closePath();
-          ctx.fill();
-          // Border
-          ctx.strokeStyle = n.color;
-          ctx.lineWidth = 2;
-          ctx.stroke();
-          // Node label
-          ctx.fillStyle = '#e2e8f0';
-          ctx.font = 'bold 14px Inter, sans-serif';
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillText(n.label, x + w / 2, y + h / 2);
-        });
-        // Generate file name
-        const timestamp = new Date();
-        const yyyy = timestamp.getFullYear();
-        const mm = String(timestamp.getMonth() + 1).padStart(2, '0');
-        const dd = String(timestamp.getDate()).padStart(2, '0');
-        const hh = String(timestamp.getHours()).padStart(2, '0');
-        const min = String(timestamp.getMinutes()).padStart(2, '0');
-        const ss = String(timestamp.getSeconds()).padStart(2, '0');
-        const fileName = `${filenamePrefix || 'flow'}_${yyyy}${mm}${dd}_${hh}${min}${ss}.png`;
-        // Trigger download
-        const link = document.createElement('a');
-        link.href = canvas.toDataURL('image/png');
-        link.download = fileName;
-        // For browsers that require the element to be in the DOM
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        showToast('Flow saved successfully!', 'success');
       }
 
       function loadFlow() {
@@ -2290,72 +2152,76 @@ function createTempConnectionLine(startX, startY) {
         }
       }
 
-      function updateNodeButtons() {
-        const container = document.getElementById('node-buttons');
-        if (!container) return;
-        
-        container.innerHTML = '';
-        nodeTypes.forEach(nodeType => {
-          const btn = document.createElement('button');
-          btn.className = 'btn node-btn tooltip';
-          btn.setAttribute('data-tooltip', `Add ${nodeType.name[currentLanguage]} node`);
-          btn.innerHTML = `<span class="badge ${nodeType.badge}"></span> ${nodeType.name[currentLanguage]}`;
-          btn.onclick = function() {
-            const x = (100 + Math.random() * 200);
-            const y = (100 + Math.random() * 200);
-            
-            createNode(nodeType.name[currentLanguage], x, y);
-            showToast(`Added ${nodeType.name[currentLanguage]}`, 'success');
-          };
-          container.appendChild(btn);
-        });
-      }
+function updateNodeButtons() {
+  const container = document.getElementById('node-buttons');
+  if (!container) return;
+  container.innerHTML = '';
+  nodeTypes.forEach(nodeType => {
+    const btn = document.createElement('button');
+    btn.className = 'btn node-btn tooltip';
+    btn.setAttribute('data-tooltip', `Add ${nodeType.name[currentLanguage]} node`);
+    btn.setAttribute('draggable', 'true'); // מאפשר גרירה
+    btn.innerHTML = `<span class="badge ${nodeType.badge}"></span> ${nodeType.name[currentLanguage]}`;
+    btn.onclick = function() {
+      const x = (100 + Math.random() * 200);
+      const y = (100 + Math.random() * 200);
+      createNode(nodeType.name[currentLanguage], x, y);
+      showToast(`Added ${nodeType.name[currentLanguage]}`, 'success');
+    };
+    // הוספת מאזין לגרירת הכפתור
+    btn.addEventListener('dragstart', (e) => {
+      e.dataTransfer.setData('text/plain', nodeType.name[currentLanguage]);
+      // אופציונלי: להגדיר אפקט גרירה
+      e.dataTransfer.effectAllowed = 'copy';
+    });
+    container.appendChild(btn);
+  });
+}
 
-      // Connection color management
-      function updateConnectionColorPicker() {
-        const colorOptions = document.querySelectorAll('.color-option');
-        colorOptions.forEach(option => {
-          option.classList.remove('active');
-          if (option.classList.contains('color-yellow') && connectionColor === '#ffff00') {
-            option.classList.add('active');
-          } else if (option.classList.contains('color-blue') && connectionColor === '#00bfff') {
-            option.classList.add('active');
-          } else if (option.classList.contains('color-red') && connectionColor === '#ff4444') {
-            option.classList.add('active');
-          }
-        });
-      }
+// Connection color management
+function updateConnectionColorPicker() {
+  const colorOptions = document.querySelectorAll('.color-option');
+  colorOptions.forEach(option => {
+    option.classList.remove('active');
+    if (option.classList.contains('color-yellow') && connectionColor === '#ffff00') {
+      option.classList.add('active');
+    } else if (option.classList.contains('color-blue') && connectionColor === '#00bfff') {
+      option.classList.add('active');
+    } else if (option.classList.contains('color-red') && connectionColor === '#ff4444') {
+      option.classList.add('active');
+    }
+  });
+}
 
-      function setConnectionColor(color) {
-        connectionColor = color;
-        updateConnectionColorPicker();
-        
-        // Update existing connections
-        connections.forEach(conn => {
-          conn.color = color;
-        });
-        renderConnections();
-        markUnsavedChanges();
-        
-        // Update CSS variable
-        document.documentElement.style.setProperty('--connection-color', color);
-        
-        showToast(`Connection color changed`, 'success');
-      }
+function setConnectionColor(color) {
+  connectionColor = color;
+  updateConnectionColorPicker();
+  // Update existing connections
+  connections.forEach(conn => {
+    conn.color = color;
+  });
+  renderConnections();
+  markUnsavedChanges();
+  // Update CSS variable
+  document.documentElement.style.setProperty('--connection-color', color);
+  showToast(`Connection color changed`, 'success');
+}
 
-      // Event handlers
-      function updateConnectionStatus() {
-        const statusEl = document.getElementById('connection-status');
-        if (statusEl) {
-          if (isConnecting && connectionStart) {
-            statusEl.textContent = `Connecting from ${connectionStart.node.label}...`;
-          } else if (isDraggingConnection && connectionStart) {
-            statusEl.textContent = `Dragging from ${connectionStart.node.label}...`;
-          } else {
-            statusEl.textContent = t('ready');
-          }
-        }
-      }
+// Event handlers
+function updateConnectionStatus() {
+  const statusEl = document.getElementById('connection-status');
+  if (statusEl) {
+    if (isConnecting && connectionStart) {
+      statusEl.textContent = `Connecting from ${connectionStart.node.label}...`;
+    } else if (isDraggingConnection && connectionStart) {
+      statusEl.textContent = `Dragging from ${connectionStart.node.label}...`;
+    } else {
+      statusEl.textContent = t('ready');
+    }
+  }
+}
+
+
 
       function setupEventListeners() {
         // Flow name input
@@ -2463,14 +2329,7 @@ function createTempConnectionLine(startX, startY) {
               const currentY = (e.clientY - rect.top - canvasY) / canvasScale;
               updateSelectionBox(currentX, currentY);
             } else if (isDraggingConnection && connectionStart) {
-              // Throttle updates of the temporary connection line to the next animation frame
-              tempLineCoords = { x: e.clientX, y: e.clientY };
-              if (!tempLineAnimationFrame) {
-                tempLineAnimationFrame = requestAnimationFrame(() => {
-                  updateTempConnectionLine(tempLineCoords.x, tempLineCoords.y);
-                  tempLineAnimationFrame = null;
-                });
-              }
+              updateTempConnectionLine(e.clientX, e.clientY);
             }
           });
 
@@ -2524,6 +2383,29 @@ function createTempConnectionLine(startX, startY) {
               e.preventDefault();
             }
           });
+
+          // Enable dropping of node buttons onto the canvas.
+          // Without these handlers the cursor shows a "no entry" sign and drop is disallowed.
+          canvasContainer.addEventListener('dragover', function(e) {
+            // Allow copy-drop operations.
+            e.preventDefault();
+            if (e.dataTransfer) {
+              e.dataTransfer.dropEffect = 'copy';
+            }
+          });
+
+          canvasContainer.addEventListener('drop', function(e) {
+            e.preventDefault();
+            const typeName = e.dataTransfer ? e.dataTransfer.getData('text/plain') : '';
+            if (typeName) {
+              const rect = canvasContainer.getBoundingClientRect();
+              // Convert the drop coordinates into untransformed canvas coordinates
+              const x = (e.clientX - rect.left - canvasX) / canvasScale;
+              const y = (e.clientY - rect.top - canvasY) / canvasScale;
+              createNode(typeName, x, y);
+              showToast(`Added ${typeName}`, 'success');
+            }
+          });
         }
 
         // Keyboard shortcuts
@@ -2574,8 +2456,7 @@ function createTempConnectionLine(startX, startY) {
           // Quick save with Ctrl/Cmd+S
           if ((e.ctrlKey || e.metaKey) && e.key === 's') {
             e.preventDefault();
-            // Quick save with image export on user command
-            saveFlow(true);
+            saveFlow();
           }
           
           // Copy with Ctrl/Cmd+C
@@ -2632,7 +2513,14 @@ function createTempConnectionLine(startX, startY) {
           }
         });
 
-        // Remove duplicate beforeunload listener in favour of the one registered at the end of the script.
+        // Prevent page unload without saving
+        window.addEventListener('beforeunload', function(e) {
+          if (hasUnsavedChanges) {
+            e.preventDefault();
+            e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+            return e.returnValue;
+          }
+        });
       }
 
       // Initialize the application
@@ -2744,7 +2632,7 @@ function createTempConnectionLine(startX, startY) {
               
               <h3>💾 ${t('fileOps')}</h3>
               <div class="group">
-                <button class="btn tooltip" onclick="saveFlow(true)" 
+                <button class="btn tooltip" onclick="saveFlow()" 
                         data-tooltip="Save flow to browser storage (Ctrl+S)">💾 ${t('saveFlow')}</button>
                 <button class="btn tooltip" onclick="loadFlow()" 
                         data-tooltip="Load previously saved flow">📂 ${t('loadFlow')}</button>
@@ -2827,17 +2715,6 @@ function createTempConnectionLine(startX, startY) {
 
       // Initialize the application
       createApp();
-      // Warn the user before refreshing or leaving the page if there are unsaved changes
-      window.addEventListener('beforeunload', function(e) {
-        // Show a confirmation dialog if there are unsaved changes when the user attempts to refresh or leave.
-        if (hasUnsavedChanges) {
-          e.preventDefault();
-          // Modern browsers display a generic message; providing a string works in some older browsers.
-          const message = 'You have unsaved changes. Are you sure you want to leave?';
-          e.returnValue = message;
-          return message;
-        }
-      });
       
       // Add a demo start node after a short delay
       setTimeout(() => {
