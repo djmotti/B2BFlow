@@ -116,8 +116,9 @@
       border: 1px solid var(--border);
       padding: 8px 14px;
       border-radius: 12px;
-      color: var(--text);
-      font-size: 14px;
+      color: #22d3ee; /* צבע טורקיז */
+      font-size: 16px;
+      font-weight: 600;
       transition: all 0.15s ease;
       backdrop-filter: blur(5px);
       position: relative;
@@ -965,6 +966,12 @@
   </div>
 
   <script>
+    // נסה לפתוח בכרום אם זמין
+    const userAgent = navigator.userAgent;
+    if (!userAgent.includes('Chrome') && !userAgent.includes('Chromium')) {
+      console.log('Recommended to use Chrome browser for better performance');
+    }
+
     document.addEventListener('DOMContentLoaded', function() {
       const root = document.getElementById('root');
       const toast = document.getElementById('toast');
@@ -1003,7 +1010,7 @@
       const translations = {
         en: {
           title: "VoiceBot Flow Editor Ultimate",
-          flowName: "Enter flow name...",
+          flowName: "Enter company name...",
           nodeTypes: "Node Types",
           layoutTools: "Layout & Tools",
           fileOps: "File Operations",
@@ -1030,7 +1037,7 @@
         },
         he: {
           title: "עורך זרימות VoiceBot מתקדם",
-          flowName: "הזן שם זרימה...",
+flowName: "הזן שם החברה...",
           nodeTypes: "סוגי צמתים",
           layoutTools: "פריסה וכלים",
           fileOps: "פעולות קובץ",
@@ -1040,7 +1047,7 @@
           loadFlow: "טען זרימה",
           exportJson: "ייצא JSON",
           importJson: "ייבא JSON",
-search: "חיפוש צמתים...",
+          search: "חיפוש צמתים...",
           validation: "בדיקת זרימה",
           controls: "בקרות",
           controlsText: "• גרור כדי לחבר צמתים\n• לחיצה כפולה לשינוי שם\n• לחיצה ימנית לתפריט\n• Shift+גרירה לבחירה מרובה\n• Ctrl+לחיצה לבחירה מרובה\n• גלגלת עכבר לזום\n• לחיצה אמצעית לניווט",
@@ -1053,7 +1060,7 @@ search: "חיפוש צמתים...",
           saving: "שומר...",
           connectionColors: "צבעי חיבורים",
           flowNotes: "הערות זרימה",
-          notesPlaceholder: "כתוב את ההערות שלך כאן..."
+          notesPlaceholder: "כתוב את הערותיך כאן..."
         }
       };
 
@@ -1110,7 +1117,6 @@ search: "חיפוש צמתים...",
             text.textContent = t('saving');
           } else {
             dot.className = 'autosave-dot';
-            // Format time in 24-hour format
             const hours = lastSaved.getHours().toString().padStart(2, '0');
             const minutes = lastSaved.getMinutes().toString().padStart(2, '0');
             const seconds = lastSaved.getSeconds().toString().padStart(2, '0');
@@ -1135,7 +1141,6 @@ search: "חיפוש צמתים...",
 
         const results = [];
         
-        // Check for start nodes
         const startNodes = nodes.filter(n => n.type.includes('Start') || n.type.includes('התחלת'));
         if (startNodes.length === 0) {
           results.push({ type: 'error', message: 'No start node found' });
@@ -1143,13 +1148,11 @@ search: "חיפוש צמתים...",
           results.push({ type: 'warning', message: 'Multiple start nodes detected' });
         }
 
-        // Check for end nodes
         const endNodes = nodes.filter(n => n.type.includes('End') || n.type.includes('סיום'));
         if (endNodes.length === 0) {
           results.push({ type: 'warning', message: 'No end node found' });
         }
 
-        // Check for orphaned nodes
         const connectedNodeIds = new Set();
         connections.forEach(conn => {
           connectedNodeIds.add(conn.from);
@@ -1167,36 +1170,10 @@ search: "חיפוש צמתים...",
           });
         }
 
-        // Check flow connectivity from start to end
-        if (startNodes.length > 0 && endNodes.length > 0) {
-          const reachableFromStart = new Set();
-          
-          function traverse(nodeId) {
-            if (reachableFromStart.has(nodeId)) return;
-            reachableFromStart.add(nodeId);
-            
-            connections
-              .filter(c => c.from === nodeId)
-              .forEach(c => traverse(c.to));
-          }
-          
-          startNodes.forEach(node => traverse(node.id));
-          
-          const unreachableEndNodes = endNodes.filter(node => !reachableFromStart.has(node.id));
-          if (unreachableEndNodes.length > 0) {
-            results.push({
-              type: 'error',
-              message: `${unreachableEndNodes.length} end node(s) not reachable from start`
-            });
-          }
-        }
-
-        // All good
         if (results.length === 0) {
           results.push({ type: 'success', message: 'Flow validation passed' });
         }
 
-        // Update validation display
         validationContainer.innerHTML = results.map(result => 
           `<div class="validation-item">
             <span class="validation-icon validation-${result.type}">
@@ -1207,7 +1184,7 @@ search: "חיפוש צמתים...",
         ).join('');
       }
 
-      // Canvas zoom and pan functions
+      // Canvas functions
       function updateCanvasTransform() {
         const viewport = document.getElementById('canvas-viewport');
         if (viewport) {
@@ -1242,170 +1219,258 @@ search: "חיפוש צמתים...",
         updateCanvasTransform();
       }
 
-      // Selection box functions
-      function createSelectionBox(startX, startY) {
-        selectionBox = document.createElement('div');
-        selectionBox.className = 'selection-box';
-        selectionBox.style.left = startX + 'px';
-        selectionBox.style.top = startY + 'px';
-        selectionBox.style.width = '0px';
-        selectionBox.style.height = '0px';
-        document.getElementById('canvas-viewport').appendChild(selectionBox);
-      }
-
-      function updateSelectionBox(currentX, currentY) {
-        if (!selectionBox) return;
+      // File operations with browser save dialog
+      function saveFlowWithDialog() {
+        validateFlow();
         
-        const left = Math.min(selectionStart.x, currentX);
-        const top = Math.min(selectionStart.y, currentY);
-        const width = Math.abs(currentX - selectionStart.x);
-        const height = Math.abs(currentY - selectionStart.y);
-        
-        selectionBox.style.left = left + 'px';
-        selectionBox.style.top = top + 'px';
-        selectionBox.style.width = width + 'px';
-        selectionBox.style.height = height + 'px';
-        
-        // Select nodes within the box
-        const boxRect = {
-          left: left,
-          top: top,
-          right: left + width,
-          bottom: top + height
+        const flowData = {
+          name: document.getElementById('flow-name').value || 'שם החברה',
+          nodes: nodes,
+          connections: connections,
+          notes: flowNotes,
+          created: new Date().toISOString(),
+          version: '3.0',
+          language: currentLanguage,
+          connectionColor: connectionColor
         };
         
+        // Create downloadable file
+        const blob = new Blob([JSON.stringify(flowData, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = (flowData.name || 'voicebot-flow') + '.json';
+        a.style.display = 'none';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        // Also save to localStorage
+        localStorage.setItem('voicebot-flow-ultimate', JSON.stringify(flowData));
+        markSaved();
+        showToast('Flow saved successfully!', 'success');
+      }
+
+      function exportFlowAsImage() {
+        // Create a canvas to draw the flow
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Calculate bounds of all nodes
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
         nodes.forEach(node => {
-          const nodeRect = {
-            left: node.x,
-            top: node.y,
-            right: node.x + 150,
-            bottom: node.y + 50
-          };
+          minX = Math.min(minX, node.x);
+          minY = Math.min(minY, node.y);
+          maxX = Math.max(maxX, node.x + 150);
+          maxY = Math.max(maxY, node.y + 50);
+        });
+        
+        const padding = 50;
+        canvas.width = maxX - minX + padding * 2;
+        canvas.height = maxY - minY + padding * 2;
+        
+        // Set background
+        ctx.fillStyle = '#1e293b';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // Draw connections
+        connections.forEach(conn => {
+          const fromNode = nodes.find(n => n.id === conn.from);
+          const toNode = nodes.find(n => n.id === conn.to);
           
-          const isInSelection = 
-            nodeRect.left < boxRect.right &&
-            nodeRect.right > boxRect.left &&
-            nodeRect.top < boxRect.bottom &&
-            nodeRect.bottom > boxRect.top;
-          
-          const nodeEl = document.getElementById(node.id);
-          if (nodeEl) {
-            if (isInSelection) {
-              if (!selectedNodes.includes(node)) {
-                selectedNodes.push(node);
-                nodeEl.classList.add('selected');
-              }
-            } else {
-              const index = selectedNodes.indexOf(node);
-              if (index > -1) {
-                selectedNodes.splice(index, 1);
-                nodeEl.classList.remove('selected');
-              }
-            }
+          if (fromNode && toNode) {
+            ctx.strokeStyle = conn.color || connectionColor;
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(fromNode.x - minX + padding + 150, fromNode.y - minY + padding + 25);
+            ctx.lineTo(toNode.x - minX + padding, toNode.y - minY + padding + 25);
+            ctx.stroke();
           }
+        });
+        
+        // Draw nodes
+        nodes.forEach(node => {
+          const x = node.x - minX + padding;
+          const y = node.y - minY + padding;
+          
+          // Node background
+          ctx.fillStyle = node.color;
+          ctx.fillRect(x, y, 150, 50);
+          
+          // Node border
+          ctx.strokeStyle = node.color;
+          ctx.lineWidth = 2;
+          ctx.strokeRect(x, y, 150, 50);
+          
+          // Node text
+          ctx.fillStyle = 'white';
+          ctx.font = '12px Arial';
+          ctx.textAlign = 'center';
+          ctx.fillText(node.label, x + 75, y + 30);
+        });
+        
+        // Download as image
+        canvas.toBlob(blob => {
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = (document.getElementById('flow-name').value || 'voicebot-flow') + '.png';
+          a.click();
+          URL.revokeObjectURL(url);
+          showToast('Flow exported as image!', 'success');
         });
       }
 
-      function removeSelectionBox() {
-        if (selectionBox) {
-          selectionBox.remove();
-          selectionBox = null;
+      function saveFlow() {
+        const flowData = {
+          name: document.getElementById('flow-name').value || 'שם החברה',
+          nodes: nodes,
+          connections: connections,
+          notes: flowNotes,
+          created: new Date().toISOString(),
+          version: '3.0',
+          language: currentLanguage,
+          connectionColor: connectionColor
+        };
+        
+        localStorage.setItem('voicebot-flow-ultimate', JSON.stringify(flowData));
+        markSaved();
+        showToast('Flow saved to browser storage!', 'success');
+      }
+
+      function loadFlow() {
+        const saved = localStorage.getItem('voicebot-flow-ultimate');
+        if (saved) {
+          try {
+            const flowData = JSON.parse(saved);
+            
+            nodes = [];
+            connections = [];
+            selectedNodes = [];
+            document.getElementById('canvas-viewport').innerHTML = '';
+            
+            nodes = flowData.nodes || [];
+            connections = flowData.connections || [];
+            flowNotes = flowData.notes || '';
+            
+            if (flowData.name) {
+              document.getElementById('flow-name').value = flowData.name;
+              document.getElementById('flow-name-display').textContent = flowData.name;
+            }
+            
+            if (flowData.language) {
+              switchLanguage(flowData.language);
+            }
+            
+            if (flowData.connectionColor) {
+              connectionColor = flowData.connectionColor;
+              updateConnectionColorPicker();
+            }
+            
+            const notesTextarea = document.getElementById('flow-notes');
+            if (notesTextarea && flowNotes) {
+              notesTextarea.value = flowNotes;
+            }
+            
+            nodes.forEach(node => renderNode(node));
+            renderConnections();
+            updateStats();
+            validateFlow();
+            markSaved();
+            
+            showToast('Flow loaded successfully!', 'success');
+          } catch (e) {
+            showToast('Failed to load flow', 'error');
+          }
+        } else {
+          showToast('No saved flow found', 'warning');
         }
       }
 
-      // Create temporary connection line while dragging
-function createTempConnectionLine(startX, startY) {
-  removeTempConnectionLine();
-  
-  const viewport = document.getElementById('canvas-viewport');
-  
-  tempConnectionLine = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  tempConnectionLine.style.position = 'absolute';
-  tempConnectionLine.style.top = '0';
-  tempConnectionLine.style.left = '0';
-  tempConnectionLine.style.width = '10000px';
-  tempConnectionLine.style.height = '10000px';
-  tempConnectionLine.style.pointerEvents = 'none';
-  tempConnectionLine.style.zIndex = '1000';
-  tempConnectionLine.style.overflow = 'visible';
-  
-  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-  path.setAttribute('id', 'temp-connection-path');
-  path.setAttribute('stroke', connectionColor || '#ffff00');
-  path.setAttribute('stroke-width', '3');
-  path.setAttribute('stroke-dasharray', '5,5');
-  path.setAttribute('fill', 'none');
-  path.setAttribute('opacity', '0.8');
-  
-  tempConnectionLine.appendChild(path);
-  viewport.appendChild(tempConnectionLine);
-}
+      function exportFlow() {
+        saveFlowWithDialog();
+      }
 
-function updateTempConnectionLine(currentX, currentY) {
-  // עדכון רק כאשר החיבור בגרירה פעילה
-  if (!tempConnectionLine || !connectionStart || !isDraggingConnection) return;
+      function importFlow(file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          try {
+            const flowData = JSON.parse(e.target.result);
+            
+            nodes = [];
+            connections = [];
+            selectedNodes = [];
+            document.getElementById('canvas-viewport').innerHTML = '';
+            
+            nodes = flowData.nodes || [];
+            connections = flowData.connections || [];
+            flowNotes = flowData.notes || '';
+            
+            if (flowData.name) {
+              document.getElementById('flow-name').value = flowData.name;
+              document.getElementById('flow-name-display').textContent = flowData.name;
+            }
+            
+            if (flowData.language) {
+              switchLanguage(flowData.language);
+            }
+            
+            if (flowData.connectionColor) {
+              connectionColor = flowData.connectionColor;
+              updateConnectionColorPicker();
+            }
+            
+            const notesTextarea = document.getElementById('flow-notes');
+            if (notesTextarea && flowNotes) {
+              notesTextarea.value = flowNotes;
+            }
+            
+            nodes.forEach(node => renderNode(node));
+            renderConnections();
+            updateStats();
+            validateFlow();
+            markSaved();
+            
+            showToast('Flow imported successfully!', 'success');
+          } catch (e) {
+            showToast('Invalid file format', 'error');
+          }
+        };
+        reader.readAsText(file);
+      }
 
-  const path = tempConnectionLine.querySelector('#temp-connection-path');
-  if (!path) return;
-  // Obtain the canvas viewport rect for coordinate conversion
-  const viewport = document.getElementById('canvas-viewport');
-  const rect = viewport.getBoundingClientRect();
-
-  // Determine the actual pixel position of the start connection point.
-  let startX, startY;
-  try {
-    const startNode = connectionStart.node;
-    const startNodeEl = document.getElementById(startNode.id);
-    // Choose the appropriate connection point on the node
-    let selector;
-    if (connectionStart.isInput) {
-      // Input connection point is the left side connection
-      selector = '.input-connection-point';
-    } else {
-      // Output connection point is the right side connection
-      // There can be multiple .connection-point elements, so select the one that is not input
-      selector = '.connection-point:not(.input-connection-point)';
-    }
-    const startPointEl = startNodeEl.querySelector(selector);
-    if (startPointEl) {
-      const cpRect = startPointEl.getBoundingClientRect();
-      // Compute the center of the connection point relative to the viewport coordinate system
-      startX = (cpRect.left + cpRect.width / 2 - rect.left - canvasX) / canvasScale;
-      startY = (cpRect.top + cpRect.height / 2 - rect.top - canvasY) / canvasScale;
-    } else {
-      // Fallback: approximate using node position if element isn't found
-      startX = connectionStart.isInput ? startNode.x : startNode.x + 150;
-      startY = startNode.y + 25;
-    }
-  } catch (err) {
-    // Fallback if any error occurs
-    const startNode = connectionStart.node;
-    startX = connectionStart.isInput ? startNode.x : startNode.x + 150;
-    startY = startNode.y + 25;
-  }
-
-  // Calculate current mouse position relative to the viewport and canvas transform
-  const endX = (currentX - rect.left - canvasX) / canvasScale;
-  const endY = (currentY - rect.top - canvasY) / canvasScale;
-
-  // Compute control point curvature for a smooth bezier curve
-  const dx = endX - startX;
-  const curvature = Math.abs(dx) * 0.3;
-
-  // Construct the path data string
-  const pathData = `M ${startX} ${startY} C ${startX + curvature} ${startY} ${endX - curvature} ${endY} ${endX} ${endY}`;
-  path.setAttribute('d', pathData);
-
-  // Animate the dashed line for visual feedback
-  path.style.animation = 'dash 0.5s linear infinite';
-}
-
-      // Remove temporary connection line
-      function removeTempConnectionLine() {
-        if (tempConnectionLine) {
-          tempConnectionLine.remove();
-          tempConnectionLine = null;
+      function clearFlow() {
+        if (confirm('Are you sure you want to clear the entire flow?')) {
+          nodes = [];
+          connections = [];
+          selectedNodes = [];
+          flowNotes = '';
+          document.getElementById('canvas-viewport').innerHTML = '';
+          const notesTextarea = document.getElementById('flow-notes');
+          if (notesTextarea) {
+            notesTextarea.value = '';
+          }
+          updateStats();
+          validateFlow();
+          markUnsavedChanges();
+          showToast('Flow cleared', 'info');
         }
+      }
+
+      // Create initial demo flow
+      function createDemoFlow() {
+        // Create Start Call node
+        const startNode = createNode(nodeTypes[0].name[currentLanguage], 100, 150);
+        
+        // Create Play Audio node  
+        const playNode = createNode(nodeTypes[1].name[currentLanguage], 300, 150);
+        
+        // Connect them
+        setTimeout(() => {
+          createConnection(startNode.id, playNode.id);
+          showToast('Demo flow created with Start Call → Play Audio', 'success');
+        }, 100);
       }
 
       // Node creation and management
@@ -1443,14 +1508,12 @@ function updateTempConnectionLine(currentX, currentY) {
           <div class="connection-point" data-node-id="${node.id}" data-type="output"></div>
         `;
 
-        // Make draggable with smooth movement
         let isDragging = false;
         let offsetX, offsetY;
 
         nodeEl.addEventListener('mousedown', function(e) {
           if (e.target.classList.contains('connection-point')) return;
           
-          // Multi-selection with Ctrl/Cmd
           if (e.ctrlKey || e.metaKey) {
             if (selectedNodes.includes(node)) {
               selectedNodes = selectedNodes.filter(n => n !== node);
@@ -1460,7 +1523,6 @@ function updateTempConnectionLine(currentX, currentY) {
               nodeEl.classList.add('selected');
             }
           } else if (!selectedNodes.includes(node)) {
-            // Single selection if node not already selected
             selectedNodes = [node];
             document.querySelectorAll('.flow-node').forEach(n => n.classList.remove('selected'));
             nodeEl.classList.add('selected');
@@ -1483,7 +1545,6 @@ function updateTempConnectionLine(currentX, currentY) {
             const deltaX = newX - node.x;
             const deltaY = newY - node.y;
             
-            // Move all selected nodes
             selectedNodes.forEach(selectedNode => {
               selectedNode.x += deltaX;
               selectedNode.y += deltaY;
@@ -1509,7 +1570,6 @@ function updateTempConnectionLine(currentX, currentY) {
           }
         });
 
-        // Double click to rename
         nodeEl.addEventListener('dblclick', function(e) {
           e.stopPropagation();
           const newLabel = prompt('Enter new name for this node:', node.label);
@@ -1526,44 +1586,18 @@ function updateTempConnectionLine(currentX, currentY) {
           }
         });
 
-        // Right click context menu
-        nodeEl.addEventListener('contextmenu', function(e) {
-          e.preventDefault();
-          showContextMenu(e.clientX, e.clientY, node);
-        });
-
-        // Setup connection handlers
         setupConnectionHandlers(nodeEl, node);
-
         viewport.appendChild(nodeEl);
       }
 
       function setupConnectionHandlers(nodeEl, node) {
         const connectionPoints = nodeEl.querySelectorAll('.connection-point');
         connectionPoints.forEach(point => {
-          // Mouse down to start dragging
-          point.addEventListener('mousedown', function(e) {
-            e.stopPropagation();
-            e.preventDefault();
-            
-            const nodeId = point.getAttribute('data-node-id');
-            const isInput = point.classList.contains('input-connection-point');
-            
-            isDraggingConnection = true;
-            connectionStart = { node: nodes.find(n => n.id === nodeId), isInput };
-            point.style.background = '#00ff00';
-            
-            // Create temporary line
-            createTempConnectionLine(e.clientX, e.clientY);
-            updateConnectionStatus();
-          });
-          
-          // Click for click-to-connect mode
           point.addEventListener('click', function(e) {
             e.stopPropagation();
             e.preventDefault();
             
-            if (!isDraggingConnection && !isConnecting) {
+            if (!isConnecting) {
               const nodeId = point.getAttribute('data-node-id');
               const isInput = point.classList.contains('input-connection-point');
               
@@ -1571,16 +1605,7 @@ function updateTempConnectionLine(currentX, currentY) {
               connectionStart = { node: nodes.find(n => n.id === nodeId), isInput };
               point.style.background = '#00ff00';
               showToast('Click another connection point to connect', 'info');
-              updateConnectionStatus();
-            }
-          });
-          
-          // Mouse up to complete connection
-          point.addEventListener('mouseup', function(e) {
-            if (isDraggingConnection && connectionStart) {
-              e.stopPropagation();
-              e.preventDefault();
-              
+            } else {
               const nodeId = point.getAttribute('data-node-id');
               const isInput = point.classList.contains('input-connection-point');
               
@@ -1590,52 +1615,19 @@ function updateTempConnectionLine(currentX, currentY) {
                 
                 createConnection(fromNode.id, toNode.id);
                 showToast('Nodes connected!', 'success');
-
-      // איפוס משתנים לאחר סיום הקישור
-      isDraggingConnection = false;
-      connectionStart = null;
-      removeTempConnectionLine();
-
               }
+              
+              isConnecting = false;
+              connectionStart = null;
+              document.querySelectorAll('.connection-point').forEach(p => {
+                p.style.background = '';
+              });
             }
-          });
-          
-          // Visual feedback
-          point.addEventListener('mouseenter', function() {
-            if (isConnecting || isDraggingConnection) {
-              point.style.transform = 'translateY(-50%) scale(1.5)';
-              point.style.boxShadow = '0 0 15px var(--accent)';
-            }
-          });
-          
-          point.addEventListener('mouseleave', function() {
-            point.style.transform = 'translateY(-50%)';
-            point.style.boxShadow = '';
           });
         });
       }
 
-      function deleteNode(nodeId) {
-        // Remove from nodes array
-        nodes = nodes.filter(n => n.id !== nodeId);
-        selectedNodes = selectedNodes.filter(n => n.id !== nodeId);
-        
-        // Remove connections
-        connections = connections.filter(c => c.from !== nodeId && c.to !== nodeId);
-        
-        // Remove from DOM
-        const nodeEl = document.getElementById(nodeId);
-        if (nodeEl) nodeEl.remove();
-        
-        renderConnections();
-        updateStats();
-        validateFlow();
-        markUnsavedChanges();
-      }
-
-      // Connection management
       function createConnection(fromId, toId) {
-        // Check if connection already exists
         const exists = connections.some(c => c.from === fromId && c.to === toId);
         if (exists) {
           showToast('Connection already exists', 'warning');
@@ -1651,7 +1643,6 @@ function updateTempConnectionLine(currentX, currentY) {
       }
 
       function renderConnections() {
-        // Remove existing connection lines
         document.querySelectorAll('.connection-line').forEach(line => line.remove());
         
         const viewport = document.getElementById('canvas-viewport');
@@ -1670,7 +1661,6 @@ function updateTempConnectionLine(currentX, currentY) {
             const toX = toNode.x;
             const toY = toNode.y + 25;
             
-            // Calculate SVG bounds with padding
             const padding = 20;
             const minX = Math.min(fromX, toX) - padding;
             const minY = Math.min(fromY, toY) - padding;
@@ -1682,21 +1672,16 @@ function updateTempConnectionLine(currentX, currentY) {
             svg.style.top = minY + 'px';
             svg.style.width = (maxX - minX) + 'px';
             svg.style.height = (maxY - minY) + 'px';
-            // Ensure the connection line does not block mouse interactions on nodes.
-            // Use pointer-events: none so the SVG won't intercept events.  The zIndex remains low
-            // so that nodes appear above connections.
             svg.style.pointerEvents = 'none';
             svg.style.zIndex = '1';
             
             const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
             
-            // Adjust coordinates relative to SVG position
             const relFromX = fromX - minX;
             const relFromY = fromY - minY;
             const relToX = toX - minX;
             const relToY = toY - minY;
             
-            // Smooth curved connection
             const dx = relToX - relFromX;
             const dy = relToY - relFromY;
             const distance = Math.sqrt(dx * dx + dy * dy);
@@ -1710,7 +1695,6 @@ function updateTempConnectionLine(currentX, currentY) {
             path.setAttribute('stroke-linecap', 'round');
             path.setAttribute('stroke-linejoin', 'round');
             
-            // Add arrow marker
             const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
             const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
             const markerId = 'arrow-' + conn.from + '-' + conn.to;
@@ -1738,265 +1722,93 @@ function updateTempConnectionLine(currentX, currentY) {
         });
       }
 
-      // Context menu
-      function showContextMenu(x, y, node) {
-        const existingMenu = document.querySelector('.context-menu');
-        if (existingMenu) existingMenu.remove();
+      function switchLanguage(lang) {
+        currentLanguage = lang;
+        document.documentElement.setAttribute('dir', lang === 'he' ? 'rtl' : 'ltr');
+        document.documentElement.setAttribute('lang', lang);
+        updateUI();
+        markUnsavedChanges();
+      }
 
-        const menu = document.createElement('div');
-        menu.className = 'context-menu';
-        menu.style.left = x + 'px';
-        menu.style.top = y + 'px';
+      function updateUI() {
+        const elements = {
+          'flow-name': { placeholder: t('flowName') },
+          'search-input': { placeholder: t('search') },
+          'flow-notes': { placeholder: t('notesPlaceholder') }
+        };
+        
+        Object.entries(elements).forEach(([id, attrs]) => {
+          const el = document.getElementById(id);
+          if (el) {
+            Object.entries(attrs).forEach(([attr, value]) => {
+              el[attr] = value;
+            });
+          }
+        });
+        
+        document.querySelectorAll('.lang-btn').forEach(btn => {
+          btn.classList.toggle('active', btn.textContent.includes(currentLanguage === 'en' ? 'EN' : 'עב'));
+        });
+        
+        updateNodeButtons();
+        
+        const app = document.querySelector('.app');
+        if (app) {
+          createApp();
+        }
+      }
 
-        const items = [
-          { text: 'Rename', action: () => {
-            const newLabel = prompt('Enter new name:', node.label);
-            if (newLabel) {
-              node.label = newLabel;
-              const nodeEl = document.getElementById(node.id);
-              nodeEl.innerHTML = `
-                <div class="input-connection-point connection-point" data-node-id="${node.id}" data-type="input"></div>
-                ${node.label}
-                <div class="connection-point" data-node-id="${node.id}" data-type="output"></div>
-              `;
-              setupConnectionHandlers(nodeEl, node);
-              showToast('Node renamed', 'success');
-              markUnsavedChanges();
-            }
-          }},
-          { text: 'Duplicate', action: () => {
-            createNode(node.type, node.x + 50, node.y + 50);
-            showToast('Node duplicated', 'success');
-          }},
-          { text: 'Delete', action: () => {
-            deleteNode(node.id);
-            showToast('Node deleted', 'info');
-          }}
-        ];
-
-        items.forEach(item => {
-          const menuItem = document.createElement('div');
-          menuItem.className = 'context-menu-item';
-          menuItem.textContent = item.text;
-          menuItem.onclick = () => {
-            item.action();
-            menu.remove();
+      function updateNodeButtons() {
+        const container = document.getElementById('node-buttons');
+        if (!container) return;
+        container.innerHTML = '';
+        nodeTypes.forEach(nodeType => {
+          const btn = document.createElement('button');
+          btn.className = 'btn node-btn tooltip';
+          btn.setAttribute('data-tooltip', `Add ${nodeType.name[currentLanguage]} node`);
+          btn.setAttribute('draggable', 'true');
+          btn.innerHTML = `<span class="badge ${nodeType.badge}"></span> ${nodeType.name[currentLanguage]}`;
+          btn.onclick = function() {
+            const x = (100 + Math.random() * 200);
+            const y = (100 + Math.random() * 200);
+            createNode(nodeType.name[currentLanguage], x, y);
+            showToast(`Added ${nodeType.name[currentLanguage]}`, 'success');
           };
-          menu.appendChild(menuItem);
-        });
-
-        document.body.appendChild(menu);
-
-        document.addEventListener('click', function closeMenu() {
-          menu.remove();
-          document.removeEventListener('click', closeMenu);
+          
+          btn.addEventListener('dragstart', (e) => {
+            e.dataTransfer.setData('text/plain', nodeType.name[currentLanguage]);
+            e.dataTransfer.effectAllowed = 'copy';
+          });
+          container.appendChild(btn);
         });
       }
 
-      // File operations with validation
-      function saveFlow() {
-        // Pre-save validation
-        validateFlow();
-        
-        const flowData = {
-          name: document.getElementById('flow-name').value || 'Untitled',
-          nodes: nodes,
-          connections: connections,
-          notes: flowNotes,
-          created: new Date().toISOString(),
-          version: '3.0',
-          language: currentLanguage,
-          connectionColor: connectionColor
-        };
-        
-        localStorage.setItem('voicebot-flow-ultimate', JSON.stringify(flowData));
-        markSaved();
-        showToast('Flow saved successfully!', 'success');
-      }
-
-      function loadFlow() {
-        const saved = localStorage.getItem('voicebot-flow-ultimate');
-        if (saved) {
-          try {
-            const flowData = JSON.parse(saved);
-            
-            // Clear current flow
-            nodes = [];
-            connections = [];
-            selectedNodes = [];
-            document.getElementById('canvas-viewport').innerHTML = '';
-            
-// Load data
-            nodes = flowData.nodes || [];
-            connections = flowData.connections || [];
-            flowNotes = flowData.notes || '';
-            
-            if (flowData.name) {
-              document.getElementById('flow-name').value = flowData.name;
-              document.getElementById('flow-name-display').textContent = flowData.name;
-            }
-            
-            if (flowData.language) {
-              switchLanguage(flowData.language);
-            }
-            
-            if (flowData.connectionColor) {
-              connectionColor = flowData.connectionColor;
-              updateConnectionColorPicker();
-            }
-            
-            // Update notes textarea
-            const notesTextarea = document.getElementById('flow-notes');
-            if (notesTextarea && flowNotes) {
-              notesTextarea.value = flowNotes;
-            }
-            
-            // Render nodes
-            nodes.forEach(node => renderNode(node));
-            renderConnections();
-            updateStats();
-            validateFlow();
-            markSaved();
-            
-            showToast('Flow loaded successfully!', 'success');
-          } catch (e) {
-            showToast('Failed to load flow', 'error');
-          }
-        } else {
-          showToast('No saved flow found', 'warning');
-        }
-      }
-
-      function exportFlow() {
-        // Pre-export validation
-        validateFlow();
-        
-        const flowData = {
-          name: document.getElementById('flow-name').value || 'Untitled',
-          nodes: nodes,
-          connections: connections,
-          notes: flowNotes,
-          created: new Date().toISOString(),
-          version: '3.0',
-          language: currentLanguage,
-          connectionColor: connectionColor,
-          metadata: {
-            nodeCount: nodes.length,
-            connectionCount: connections.length,
-            exportedBy: 'VoiceBot Flow Editor Ultimate',
-            createdBy: 'Consist - Moti Kalimi'
-          }
-        };
-        
-        const blob = new Blob([JSON.stringify(flowData, null, 2)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = (flowData.name || 'voicebot-flow') + '.json';
-        a.click();
-        URL.revokeObjectURL(url);
-        showToast('Flow exported!', 'success');
-      }
-
-      function importFlow(file) {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-          try {
-            const flowData = JSON.parse(e.target.result);
-            
-            // Clear current flow
-            nodes = [];
-            connections = [];
-            selectedNodes = [];
-            document.getElementById('canvas-viewport').innerHTML = '';
-            
-            // Load data
-            nodes = flowData.nodes || [];
-            connections = flowData.connections || [];
-            flowNotes = flowData.notes || '';
-            
-            if (flowData.name) {
-              document.getElementById('flow-name').value = flowData.name;
-              document.getElementById('flow-name-display').textContent = flowData.name;
-            }
-            
-            if (flowData.language) {
-              switchLanguage(flowData.language);
-            }
-            
-            if (flowData.connectionColor) {
-              connectionColor = flowData.connectionColor;
-              updateConnectionColorPicker();
-            }
-            
-            // Update notes textarea
-            const notesTextarea = document.getElementById('flow-notes');
-            if (notesTextarea && flowNotes) {
-              notesTextarea.value = flowNotes;
-            }
-            
-            // Render
-            nodes.forEach(node => renderNode(node));
-            renderConnections();
-            updateStats();
-            validateFlow();
-            markSaved();
-            
-            showToast('Flow imported successfully!', 'success');
-          } catch (e) {
-            showToast('Invalid file format', 'error');
-          }
-        };
-        reader.readAsText(file);
-      }
-
-      function clearFlow() {
-        if (confirm('Are you sure you want to clear the entire flow?')) {
-          nodes = [];
-          connections = [];
-          selectedNodes = [];
-          flowNotes = '';
-          document.getElementById('canvas-viewport').innerHTML = '';
-          const notesTextarea = document.getElementById('flow-notes');
-          if (notesTextarea) {
-            notesTextarea.value = '';
-          }
-          updateStats();
-          validateFlow();
-          markUnsavedChanges();
-          showToast('Flow cleared', 'info');
-        }
-      }
-
-      // Search functionality
-      function searchNodes(term) {
-        const results = nodes.filter(node => 
-          node.label.toLowerCase().includes(term.toLowerCase()) ||
-          node.type.toLowerCase().includes(term.toLowerCase())
-        );
-        
-        // Highlight matching nodes
-        document.querySelectorAll('.flow-node').forEach(nodeEl => {
-          nodeEl.classList.remove('search-highlight');
-        });
-        
-        results.forEach(node => {
-          const nodeEl = document.getElementById(node.id);
-          if (nodeEl) {
-            nodeEl.classList.add('search-highlight');
+function updateConnectionColorPicker() {
+        const colorOptions = document.querySelectorAll('.color-option');
+        colorOptions.forEach(option => {
+          option.classList.remove('active');
+          if (option.classList.contains('color-yellow') && connectionColor === '#ffff00') {
+            option.classList.add('active');
+          } else if (option.classList.contains('color-blue') && connectionColor === '#00bfff') {
+            option.classList.add('active');
+          } else if (option.classList.contains('color-red') && connectionColor === '#ff4444') {
+            option.classList.add('active');
           }
         });
-        
-        if (results.length > 0) {
-          showToast(`Found ${results.length} matching node(s)`, 'success');
-        } else {
-          showToast('No matching nodes found', 'warning');
-        }
-        
-        return results;
       }
 
-      // Layout functions
+      function setConnectionColor(color) {
+        connectionColor = color;
+        updateConnectionColorPicker();
+        connections.forEach(conn => {
+          conn.color = color;
+        });
+        renderConnections();
+        markUnsavedChanges();
+        document.documentElement.style.setProperty('--connection-color', color);
+        showToast(`Connection color changed`, 'success');
+      }
+
       function autoLayout() {
         if (nodes.length === 0) return;
         
@@ -2004,7 +1816,6 @@ function updateTempConnectionLine(currentX, currentY) {
         const levels = [];
         const visited = new Set();
         
-        // Simple hierarchical layout starting from start nodes
         function layoutLevel(currentNodes, level = 0) {
           if (!levels[level]) levels[level] = [];
           
@@ -2013,7 +1824,6 @@ function updateTempConnectionLine(currentX, currentY) {
               visited.add(node.id);
               levels[level].push(node);
               
-              // Find connected nodes
               const connectedNodeIds = connections
                 .filter(c => c.from === node.id)
                 .map(c => c.to);
@@ -2030,7 +1840,6 @@ function updateTempConnectionLine(currentX, currentY) {
           layoutLevel(startNodes);
         }
         
-        // Position nodes
         const levelWidth = 250;
         const nodeHeight = 100;
         
@@ -2049,7 +1858,6 @@ function updateTempConnectionLine(currentX, currentY) {
           });
         });
         
-        // Layout remaining unconnected nodes
         const unvisited = nodes.filter(n => !visited.has(n.id));
         unvisited.forEach((node, index) => {
           node.x = 100 + (levels.length * levelWidth);
@@ -2114,131 +1922,17 @@ function updateTempConnectionLine(currentX, currentY) {
         showToast('Circular layout applied', 'success');
       }
 
-      // Language switching
-      function switchLanguage(lang) {
-        currentLanguage = lang;
-        document.documentElement.setAttribute('dir', lang === 'he' ? 'rtl' : 'ltr');
-        document.documentElement.setAttribute('lang', lang);
-        updateUI();
-        markUnsavedChanges();
-      }
-
-      function updateUI() {
-        // Update all translatable elements
-        const elements = {
-          'flow-name': { placeholder: t('flowName') },
-          'search-input': { placeholder: t('search') },
-          'flow-notes': { placeholder: t('notesPlaceholder') }
-        };
-        
-        Object.entries(elements).forEach(([id, attrs]) => {
-          const el = document.getElementById(id);
-          if (el) {
-            Object.entries(attrs).forEach(([attr, value]) => {
-              el[attr] = value;
-            });
-          }
-        });
-        
-        // Update language buttons
-        document.querySelectorAll('.lang-btn').forEach(btn => {
-          btn.classList.toggle('active', btn.textContent.includes(currentLanguage === 'en' ? 'EN' : 'עב'));
-        });
-        
-        // Update buttons and labels
-        updateNodeButtons();
-        
-        // Update all text content
-        const app = document.querySelector('.app');
-        if (app) {
-          createApp(); // Rebuild the entire UI with new language
-        }
-      }
-
-function updateNodeButtons() {
-  const container = document.getElementById('node-buttons');
-  if (!container) return;
-  container.innerHTML = '';
-  nodeTypes.forEach(nodeType => {
-    const btn = document.createElement('button');
-    btn.className = 'btn node-btn tooltip';
-    btn.setAttribute('data-tooltip', `Add ${nodeType.name[currentLanguage]} node`);
-    btn.setAttribute('draggable', 'true'); // מאפשר גרירה
-    btn.innerHTML = `<span class="badge ${nodeType.badge}"></span> ${nodeType.name[currentLanguage]}`;
-    btn.onclick = function() {
-      const x = (100 + Math.random() * 200);
-      const y = (100 + Math.random() * 200);
-      createNode(nodeType.name[currentLanguage], x, y);
-      showToast(`Added ${nodeType.name[currentLanguage]}`, 'success');
-    };
-    // הוספת מאזין לגרירת הכפתור
-    btn.addEventListener('dragstart', (e) => {
-      e.dataTransfer.setData('text/plain', nodeType.name[currentLanguage]);
-      // אופציונלי: להגדיר אפקט גרירה
-      e.dataTransfer.effectAllowed = 'copy';
-    });
-    container.appendChild(btn);
-  });
-}
-
-// Connection color management
-function updateConnectionColorPicker() {
-  const colorOptions = document.querySelectorAll('.color-option');
-  colorOptions.forEach(option => {
-    option.classList.remove('active');
-    if (option.classList.contains('color-yellow') && connectionColor === '#ffff00') {
-      option.classList.add('active');
-    } else if (option.classList.contains('color-blue') && connectionColor === '#00bfff') {
-      option.classList.add('active');
-    } else if (option.classList.contains('color-red') && connectionColor === '#ff4444') {
-      option.classList.add('active');
-    }
-  });
-}
-
-function setConnectionColor(color) {
-  connectionColor = color;
-  updateConnectionColorPicker();
-  // Update existing connections
-  connections.forEach(conn => {
-    conn.color = color;
-  });
-  renderConnections();
-  markUnsavedChanges();
-  // Update CSS variable
-  document.documentElement.style.setProperty('--connection-color', color);
-  showToast(`Connection color changed`, 'success');
-}
-
-// Event handlers
-function updateConnectionStatus() {
-  const statusEl = document.getElementById('connection-status');
-  if (statusEl) {
-    if (isConnecting && connectionStart) {
-      statusEl.textContent = `Connecting from ${connectionStart.node.label}...`;
-    } else if (isDraggingConnection && connectionStart) {
-      statusEl.textContent = `Dragging from ${connectionStart.node.label}...`;
-    } else {
-      statusEl.textContent = t('ready');
-    }
-  }
-}
-
-
-
       function setupEventListeners() {
-        // Flow name input
         const flowNameInput = document.getElementById('flow-name');
         const flowNameDisplay = document.getElementById('flow-name-display');
         
         if (flowNameInput && flowNameDisplay) {
           flowNameInput.addEventListener('input', function() {
-            flowNameDisplay.textContent = this.value || 'Untitled';
+            flowNameDisplay.textContent = this.value || 'שם החברה';
             markUnsavedChanges();
           });
         }
 
-        // Notes textarea
         const notesTextarea = document.getElementById('flow-notes');
         if (notesTextarea) {
           notesTextarea.addEventListener('input', function() {
@@ -2247,26 +1941,8 @@ function updateConnectionStatus() {
           });
         }
 
-        // Search functionality
-        const searchInput = document.getElementById('search-input');
-        if (searchInput) {
-          searchInput.addEventListener('input', function() {
-            const term = this.value.trim();
-            if (term) {
-              searchNodes(term);
-            } else {
-              // Clear highlights
-              document.querySelectorAll('.flow-node').forEach(nodeEl => {
-                nodeEl.classList.remove('search-highlight');
-              });
-            }
-          });
-        }
-
-        // Canvas mouse events for panning, zooming, and selection
         const canvasContainer = document.getElementById('canvas-container');
         if (canvasContainer) {
-          // Zoom with mouse wheel
           canvasContainer.addEventListener('wheel', function(e) {
             e.preventDefault();
             const rect = canvasContainer.getBoundingClientRect();
@@ -2280,7 +1956,6 @@ function updateConnectionStatus() {
               canvasScale = Math.max(canvasScale / 1.1, 0.1);
             }
             
-            // Zoom towards mouse position
             const scaleChange = canvasScale / oldScale;
             canvasX = mouseX - (mouseX - canvasX) * scaleChange;
             canvasY = mouseY - (mouseY - canvasY) * scaleChange;
@@ -2288,34 +1963,19 @@ function updateConnectionStatus() {
             updateCanvasTransform();
           });
 
-          // Mouse events for panning and selection
           canvasContainer.addEventListener('mousedown', function(e) {
-            if (e.button === 1 || (e.button === 0 && e.ctrlKey && !e.shiftKey)) {
-              // Middle button or Ctrl+left for panning
+            if (e.button === 1 || (e.button === 0 && e.ctrlKey)) {
               e.preventDefault();
               isPanning = true;
               panStart = { x: e.clientX - canvasX, y: e.clientY - canvasY };
               canvasContainer.classList.add('panning');
-            } else if (e.button === 0 && e.shiftKey && e.target === canvasContainer) {
-              // Shift+left for box selection
-              e.preventDefault();
-              isSelecting = true;
-              const rect = canvasContainer.getBoundingClientRect();
-              selectionStart = {
-                x: (e.clientX - rect.left - canvasX) / canvasScale,
-                y: (e.clientY - rect.top - canvasY) / canvasScale
-              };
-              createSelectionBox(selectionStart.x, selectionStart.y);
             } else if (e.button === 0 && e.target === canvasContainer) {
-              // Clear selection when clicking on empty canvas
               selectedNodes = [];
               document.querySelectorAll('.flow-node').forEach(n => n.classList.remove('selected'));
               
-              // Cancel connection mode
               if (isConnecting) {
                 isConnecting = false;
                 connectionStart = null;
-                updateConnectionStatus();
                 showToast('Connection cancelled', 'info');
               }
             }
@@ -2326,13 +1986,6 @@ function updateConnectionStatus() {
               canvasX = e.clientX - panStart.x;
               canvasY = e.clientY - panStart.y;
               updateCanvasTransform();
-            } else if (isSelecting) {
-              const rect = canvasContainer.getBoundingClientRect();
-              const currentX = (e.clientX - rect.left - canvasX) / canvasScale;
-              const currentY = (e.clientY - rect.top - canvasY) / canvasScale;
-              updateSelectionBox(currentX, currentY);
-            } else if (isDraggingConnection && connectionStart) {
-              updateTempConnectionLine(e.clientX, e.clientY);
             }
           });
 
@@ -2340,57 +1993,10 @@ function updateConnectionStatus() {
             if (isPanning && (e.button === 1 || e.button === 0)) {
               isPanning = false;
               canvasContainer.classList.remove('panning');
-            } else if (isSelecting && e.button === 0) {
-              isSelecting = false;
-              removeSelectionBox();
-            } else if (isDraggingConnection) {
-              isDraggingConnection = false;
-              removeTempConnectionLine();
-              
-              // Reset connection points color
-              document.querySelectorAll('.connection-point').forEach(p => {
-                p.style.background = '';
-              });
-              
-              // If not on a valid connection point, cancel
-              if (!e.target.classList.contains('connection-point')) {
-                connectionStart = null;
-                updateConnectionStatus();
-              }
-            } else if (isConnecting && e.target.classList.contains('connection-point')) {
-              const nodeId = e.target.getAttribute('data-node-id');
-              const isInput = e.target.classList.contains('input-connection-point');
-              
-              if (connectionStart && connectionStart.node.id !== nodeId && connectionStart.isInput !== isInput) {
-                const fromNode = connectionStart.isInput ? nodes.find(n => n.id === nodeId) : connectionStart.node;
-                const toNode = connectionStart.isInput ? connectionStart.node : nodes.find(n => n.id === nodeId);
-                
-                createConnection(fromNode.id, toNode.id);
-                showToast('Nodes connected!', 'success');
-              }
-              
-              isConnecting = false;
-              connectionStart = null;
-              updateConnectionStatus();
-              
-              // Reset colors
-              document.querySelectorAll('.connection-point').forEach(p => {
-                p.style.background = '';
-              });
             }
           });
 
-          // Prevent context menu on middle click
-          canvasContainer.addEventListener('contextmenu', function(e) {
-            if (e.target === canvasContainer) {
-              e.preventDefault();
-            }
-          });
-
-          // Enable dropping of node buttons onto the canvas.
-          // Without these handlers the cursor shows a "no entry" sign and drop is disallowed.
           canvasContainer.addEventListener('dragover', function(e) {
-            // Allow copy-drop operations.
             e.preventDefault();
             if (e.dataTransfer) {
               e.dataTransfer.dropEffect = 'copy';
@@ -2402,7 +2008,6 @@ function updateConnectionStatus() {
             const typeName = e.dataTransfer ? e.dataTransfer.getData('text/plain') : '';
             if (typeName) {
               const rect = canvasContainer.getBoundingClientRect();
-              // Convert the drop coordinates into untransformed canvas coordinates
               const x = (e.clientX - rect.left - canvasX) / canvasScale;
               const y = (e.clientY - rect.top - canvasY) / canvasScale;
               createNode(typeName, x, y);
@@ -2411,130 +2016,48 @@ function updateConnectionStatus() {
           });
         }
 
-        // Keyboard shortcuts
         document.addEventListener('keydown', function(e) {
-          // Delete selected nodes
           if ((e.key === 'Delete' || e.key === 'Backspace') && selectedNodes.length > 0) {
             e.preventDefault();
-            selectedNodes.forEach(node => deleteNode(node.id));
+            selectedNodes.forEach(node => {
+              nodes = nodes.filter(n => n.id !== node.id);
+              connections = connections.filter(c => c.from !== node.id && c.to !== node.id);
+              const nodeEl = document.getElementById(node.id);
+              if (nodeEl) nodeEl.remove();
+            });
             selectedNodes = [];
+            renderConnections();
+            updateStats();
+            validateFlow();
+            markUnsavedChanges();
             showToast('Deleted selected nodes', 'info');
           }
           
-          // Cancel operations with Escape
           if (e.key === 'Escape') {
             isConnecting = false;
-            isDraggingConnection = false;
             connectionStart = null;
-            removeTempConnectionLine();
-            updateConnectionStatus();
-            
-            // Clear selections
             selectedNodes = [];
             document.querySelectorAll('.flow-node').forEach(n => n.classList.remove('selected'));
-            
-            // Clear search highlights
-            document.querySelectorAll('.flow-node').forEach(nodeEl => {
-              nodeEl.classList.remove('search-highlight');
-            });
-            
-            // Clear search input
-            const searchInput = document.getElementById('search-input');
-            if (searchInput) searchInput.value = '';
-            
-            // Reset connection points
             document.querySelectorAll('.connection-point').forEach(p => {
               p.style.background = '';
             });
           }
           
-          // Select all with Ctrl/Cmd+A
-          if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
-            e.preventDefault();
-            selectedNodes = [...nodes];
-            document.querySelectorAll('.flow-node').forEach(n => n.classList.add('selected'));
-            showToast(`Selected ${nodes.length} nodes`, 'info');
-          }
-          
-          // Quick save with Ctrl/Cmd+S
           if ((e.ctrlKey || e.metaKey) && e.key === 's') {
             e.preventDefault();
             saveFlow();
           }
-          
-          // Copy with Ctrl/Cmd+C
-          if ((e.ctrlKey || e.metaKey) && e.key === 'c' && selectedNodes.length > 0) {
-            e.preventDefault();
-            const clipboard = {
-              nodes: selectedNodes.map(node => ({...node})),
-              connections: connections.filter(c => 
-                selectedNodes.some(n => n.id === c.from) && 
-                selectedNodes.some(n => n.id === c.to)
-              )
-            };
-            localStorage.setItem('voicebot-clipboard', JSON.stringify(clipboard));
-            showToast(`Copied ${selectedNodes.length} nodes`, 'success');
-          }
-          
-          // Paste with Ctrl/Cmd+V
-          if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
-            e.preventDefault();
-            const clipboardData = localStorage.getItem('voicebot-clipboard');
-            if (clipboardData) {
-              try {
-                const clipboard = JSON.parse(clipboardData);
-                const idMap = {};
-                
-                // Create new nodes with offset
-                clipboard.nodes.forEach(node => {
-                  const newId = generateId();
-                  idMap[node.id] = newId;
-                  const newNode = {
-                    id: newId,
-                    type: node.type,
-                    x: node.x + 50,
-                    y: node.y + 50,
-                    color: node.color,
-                    label: node.label
-                  };
-                  nodes.push(newNode);
-                  renderNode(newNode);
-                });
-                
-                // Create connections with new IDs
-                clipboard.connections.forEach(conn => {
-                  if (idMap[conn.from] && idMap[conn.to]) {
-                    createConnection(idMap[conn.from], idMap[conn.to]);
-                  }
-                });
-                
-                showToast(`Pasted ${clipboard.nodes.length} nodes`, 'success');
-              } catch (e) {
-                showToast('Invalid clipboard data', 'error');
-              }
-            }
-          }
-        });
-
-        // Prevent page unload without saving
-        window.addEventListener('beforeunload', function(e) {
-          if (hasUnsavedChanges) {
-            e.preventDefault();
-            e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
-            return e.returnValue;
-          }
         });
       }
 
-      // Initialize the application
       function createApp() {
         root.innerHTML = `
           <div class="app">
             <header>
               <div class="title">
                 <span id="app-title">${t('title')}</span>
-                <input id="flow-name" value="New Advanced Flow" placeholder="${t('flowName')}" 
-                       class="tooltip" data-tooltip="Click here to change the flow name">
+                <input id="flow-name" value="שם החברה" placeholder="${t('flowName')}" 
+                       class="tooltip" data-tooltip="Click here to change the company name">
               </div>
               <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
                 <div class="language-toggle">
@@ -2575,12 +2098,6 @@ function updateConnectionStatus() {
                        data-tooltip="Search for nodes by name or type">
               </div>
 
-              <h3>📝 ${t('flowNotes')}</h3>
-              <div class="group">
-                <textarea class="notes-textarea" id="flow-notes" 
-                          placeholder="${t('notesPlaceholder')}"></textarea>
-              </div>
-
               <div class="validation-panel">
                 <h4 style="margin: 0 0 8px 0; color: var(--accent); font-size: 12px;">🔍 ${t('validation')}</h4>
                 <div id="validation-results">
@@ -2589,6 +2106,17 @@ function updateConnectionStatus() {
                     <span>No nodes in flow</span>
                   </div>
                 </div>
+              </div>
+
+              <h3>🔧 ${t('nodeTypes')}</h3>
+              <div class="group" id="node-buttons">
+                <!-- Node buttons will be added here -->
+              </div>
+
+              <h3>📝 ${t('flowNotes')}</h3>
+              <div class="group">
+                <textarea class="notes-textarea" id="flow-notes" 
+                          placeholder="${t('notesPlaceholder')}"></textarea>
               </div>
 
               <h3>🎨 ${t('connectionColors')}</h3>
@@ -2604,11 +2132,6 @@ function updateConnectionStatus() {
                        data-tooltip="Bright Red" 
                        onclick="setConnectionColor('#ff4444')"></div>
                 </div>
-              </div>
-              
-              <h3>🔧 ${t('nodeTypes')}</h3>
-              <div class="group" id="node-buttons">
-                <!-- Node buttons will be added here -->
               </div>
               
               <h3>🎨 ${t('layoutTools')}</h3>
@@ -2635,12 +2158,12 @@ function updateConnectionStatus() {
               
               <h3>💾 ${t('fileOps')}</h3>
               <div class="group">
-                <button class="btn tooltip" onclick="saveFlow()" 
-                        data-tooltip="Save flow to browser storage (Ctrl+S)">💾 ${t('saveFlow')}</button>
                 <button class="btn tooltip" onclick="loadFlow()" 
                         data-tooltip="Load previously saved flow">📂 ${t('loadFlow')}</button>
                 <button class="btn tooltip" onclick="exportFlow()" 
                         data-tooltip="Download flow as JSON file">📤 ${t('exportJson')}</button>
+                <button class="btn tooltip" onclick="exportFlowAsImage()" 
+                        data-tooltip="Export flow as PNG image">🖼️ Export PNG</button>
                 <label class="btn tooltip" data-tooltip="Upload and import a JSON flow file">
                   📥 ${t('importJson')}
                   <input type="file" class="file-input" accept=".json" onchange="handleFileImport(event)">
@@ -2655,7 +2178,7 @@ function updateConnectionStatus() {
             
             <main>
               <div class="toolbar">
-                <span class="pill">Flow: <span id="flow-name-display">New Advanced Flow</span></span>
+                <span class="pill">Flow: <span id="flow-name-display">שם החברה</span></span>
                 <span class="pill">Drag to connect nodes</span>
                 <span class="pill">Status: <span id="connection-status">${t('ready')}</span></span>
                 <span class="pill">Zoom: <span id="zoom-display">100%</span></span>
@@ -2666,7 +2189,7 @@ function updateConnectionStatus() {
                   <!-- Nodes and connections will be rendered here -->
                 </div>
                 
-<div class="zoom-controls">
+                <div class="zoom-controls">
                   <button class="zoom-btn tooltip" onclick="zoomIn()" data-tooltip="Zoom in">+</button>
                   <div class="zoom-indicator">100%</div>
                   <button class="zoom-btn tooltip" onclick="zoomOut()" data-tooltip="Zoom out">−</button>
@@ -2677,11 +2200,9 @@ function updateConnectionStatus() {
           </div>
         `;
 
-        // Setup event listeners and initialize
         setupEventListeners();
         updateNodeButtons();
         
-        // Auto-save every 3 seconds
         setInterval(() => {
           if (hasUnsavedChanges) {
             saveFlow();
@@ -2703,6 +2224,7 @@ function updateConnectionStatus() {
       window.saveFlow = saveFlow;
       window.loadFlow = loadFlow;
       window.exportFlow = exportFlow;
+      window.exportFlowAsImage = exportFlowAsImage;
       window.zoomIn = zoomIn;
       window.zoomOut = zoomOut;
       window.resetZoom = resetZoom;
@@ -2712,17 +2234,16 @@ function updateConnectionStatus() {
         const file = event.target.files[0];
         if (file) {
           importFlow(file);
-          event.target.value = ''; // Reset file input
+          event.target.value = '';
         }
       };
 
       // Initialize the application
       createApp();
       
-      // Add a demo start node after a short delay
+      // Create demo flow with Start Call and Play Audio connected
       setTimeout(() => {
-        createNode(nodeTypes[0].name[currentLanguage], 250, 150);
-        showToast('VoiceBot Flow Editor Ultimate loaded successfully!', 'success');
+        createDemoFlow();
       }, 100);
     });
   </script>
